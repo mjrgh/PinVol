@@ -692,7 +692,7 @@ namespace PinVol
             }
 
             // load the configuration
-            cfg = new Config();
+            cfg = new Config(this);
             cfg.Load();
 
             // if any keys are mapped to joystick buttons, enable the joystick even if

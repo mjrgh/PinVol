@@ -14,7 +14,7 @@ namespace PinVol
 {
     public class Config
     {
-        public Config()
+        public Config(Form win)
         {
             // set up default key assignments
             keys["globalVolUp"] = new KeyInfo(Keys.F10, false, false, false, true);
@@ -23,6 +23,10 @@ namespace PinVol
             keys["localVolUp"] = new KeyInfo(Keys.VolumeUp);
             keys["localVolDown"] = new KeyInfo(Keys.VolumeDown);
             keys["nightMode"] = new KeyInfo(Keys.F7, false, false, false, true);
+
+            // set the default OSD window to the right side of the screen
+            Rectangle rc = Screen.FromControl(win).Bounds;
+            OSDPos = new Rectangle(rc.Width - 230, 50, 180, rc.Height - 125);
         }
 
         // Miscellaneous configuration settings
@@ -30,9 +34,9 @@ namespace PinVol
         public bool ExtVolIsLocal = false;              // external volume changes are applied to the local volume
         public bool OSDOnHotkeys = true;                // show the on-screen volume display on hotkey volume changes
         public bool OSDOnAppSwitch = false;             // show the on-screen volume display on application switching
-        public int OSDRotation = -90;                   // rotation matrix for on-screen volume display
+        public int OSDRotation = 90;                    // rotation matrix for on-screen volume display
         public bool UnMuteOnVolChange = true;           // turn off muting whenever the volume is changed
-        public Rectangle OSDPos = new Rectangle(50, 50, 680, 180);    // overlay position
+        public Rectangle OSDPos = new Rectangle(50, 50, 180, 680);    // overlay position
         public bool EnableJoystick = false;             // enable joystick input
 
         // Audio device record.  This represents the saved config data
@@ -172,7 +176,20 @@ namespace PinVol
             int lineNum = 0;
             try
             {
-                String[] lines = File.ReadAllLines(filename);
+                String[] lines = null;
+                try
+                {
+                    lines = File.ReadAllLines(filename);
+                }
+                catch (FileNotFoundException)
+                {
+                    // It's not an error if the file doesn't exist, since we can
+                    // just use defaults.  Log it as information only and simply
+                    // return to proceed with defaults.
+                    Log.Info("The settings file (" + filename + ") doesn't seem to exist; using defaults");
+                    return;
+                }
+
                 foreach (String line in lines)
                 {
                     // count it

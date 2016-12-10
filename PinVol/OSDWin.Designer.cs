@@ -40,7 +40,7 @@
             this.btnCW.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
             this.btnCW.FlatAppearance.BorderSize = 0;
             this.btnCW.Image = global::PinVol.Properties.Resources.RotateCW;
-            this.btnCW.Location = new System.Drawing.Point(541, 117);
+            this.btnCW.Location = new System.Drawing.Point(112, 702);
             this.btnCW.Name = "btnCW";
             this.btnCW.Size = new System.Drawing.Size(68, 68);
             this.btnCW.TabIndex = 0;
@@ -56,7 +56,7 @@
             this.btnCCW.FlatAppearance.MouseDownBackColor = System.Drawing.Color.Transparent;
             this.btnCCW.FlatAppearance.MouseOverBackColor = System.Drawing.Color.Transparent;
             this.btnCCW.Image = global::PinVol.Properties.Resources.RotateCCW;
-            this.btnCCW.Location = new System.Drawing.Point(1, 117);
+            this.btnCCW.Location = new System.Drawing.Point(0, 702);
             this.btnCCW.Name = "btnCCW";
             this.btnCCW.Size = new System.Drawing.Size(68, 68);
             this.btnCCW.TabIndex = 1;
@@ -66,7 +66,7 @@
             // 
             // btnDone
             // 
-            this.btnDone.Location = new System.Drawing.Point(266, 74);
+            this.btnDone.Location = new System.Drawing.Point(50, 374);
             this.btnDone.Name = "btnDone";
             this.btnDone.Size = new System.Drawing.Size(75, 23);
             this.btnDone.TabIndex = 2;
@@ -80,11 +80,12 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(222)))), ((int)(((byte)(222)))), ((int)(((byte)(222)))));
-            this.ClientSize = new System.Drawing.Size(608, 185);
+            this.ClientSize = new System.Drawing.Size(181, 770);
             this.ControlBox = false;
             this.Controls.Add(this.btnDone);
             this.Controls.Add(this.btnCCW);
             this.Controls.Add(this.btnCW);
+            this.Enabled = false;
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MaximizeBox = false;

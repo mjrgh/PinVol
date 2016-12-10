@@ -72,6 +72,7 @@ namespace PinVol
                 // show the window
                 Opacity = 1.0;
                 Visible = true;
+                Enabled = true;
 
                 // switch to local volume display, since that uses the larger text caption
                 osdType = OSDType.Local;
@@ -91,6 +92,9 @@ namespace PinVol
                 btnDone.Visible = false;
                 btnCCW.Visible = false;
                 btnCW.Visible = false;
+
+                // disable the whole window so it won't accidentally grab focus
+                Enabled = false;
 
                 // move to account for the the disappearing border controls
                 Point zero = PointToScreen(new Point(0, 0));
@@ -278,16 +282,52 @@ namespace PinVol
 
         private void btnCCW_Click(object sender, EventArgs e)
         {
-            mainwin.cfg.OSDRotation = (mainwin.cfg.OSDRotation + 90) % 360;
-            Invalidate();
+            RotateBy(90);
         }
 
         private void btnCW_Click(object sender, EventArgs e)
         {
-            mainwin.cfg.OSDRotation -= 90;
-            if (mainwin.cfg.OSDRotation < 0)
-                mainwin.cfg.OSDRotation += 360;
+            RotateBy(-90);
+        }
+
+        // Rotate by the given angle.  Note that we only support display 
+        // rotations that are multiples of 90, so the delta must also be 
+        // a multiple of 90.
+        private void RotateBy(int dAngle)
+        {
+            // apply the delta, limiting to the 0-360 range
+            mainwin.cfg.OSDRotation = ((mainwin.cfg.OSDRotation + dAngle) % 360 + 360) % 360;
+
+            // note the config update
             mainwin.SetCfgDirty();
+
+            // if rotating by +/- 90, swap the window's height and width
+            if (Math.Abs(dAngle) % 180 == 90)
+            {
+                // note the current bottom location
+                Point br = new Point(Right, Bottom);
+
+                // rotate it
+                int h = Height;
+                Height = Width;
+                Width = h;
+
+                // The rotation controls are at the bottom of the window,
+                // so it seems most intuitive to rotate around the bottom
+                // right.  Reposition the window so that the bottom right
+                // stays where it was.
+                Left = br.X - Width;
+                Top = br.Y - Height;
+
+                // ...but make sure the title bar is still on screen
+                Rectangle scr = Screen.FromControl(this).Bounds;
+                if (Top < scr.Top)
+                    Top = scr.Top;
+                if (Left < scr.Left)
+                    Left = scr.Left;
+            }
+
+            // make sure we redraw the interior at the new rotation
             Invalidate();
         }
 
