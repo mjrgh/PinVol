@@ -70,6 +70,12 @@
             this.txtMute = new System.Windows.Forms.TextBox();
             this.ckUnmuteOnVolChange = new System.Windows.Forms.CheckBox();
             this.settingsPanel = new System.Windows.Forms.Panel();
+            this.label19 = new System.Windows.Forms.Label();
+            this.ckEnableLocal2 = new System.Windows.Forms.CheckBox();
+            this.label18 = new System.Windows.Forms.Label();
+            this.txtLocal2Down = new System.Windows.Forms.TextBox();
+            this.txtLocal2Up = new System.Windows.Forms.TextBox();
+            this.label17 = new System.Windows.Forms.Label();
             this.label16 = new System.Windows.Forms.Label();
             this.txtNightMode = new System.Windows.Forms.TextBox();
             this.label15 = new System.Windows.Forms.Label();
@@ -81,6 +87,7 @@
             this.joystickRescanTimer = new System.Windows.Forms.Timer(this.components);
             this.tipVersion = new System.Windows.Forms.ToolTip(this.components);
             this.lblVersion = new System.Windows.Forms.Label();
+            this.configToolCheckTimer = new System.Windows.Forms.Timer(this.components);
             this.KeyMenu.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trkGlobalVol)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.trkLocalVol)).BeginInit();
@@ -114,7 +121,7 @@
             this.label3.AutoSize = true;
             this.label3.Location = new System.Drawing.Point(10, 280);
             this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(462, 52);
+            this.label3.Size = new System.Drawing.Size(534, 52);
             this.label3.TabIndex = 2;
             this.label3.Text = resources.GetString("label3.Text");
             // 
@@ -139,7 +146,7 @@
             // label6
             // 
             this.label6.AutoSize = true;
-            this.label6.Location = new System.Drawing.Point(26, 367);
+            this.label6.Location = new System.Drawing.Point(26, 387);
             this.label6.Name = "label6";
             this.label6.Size = new System.Drawing.Size(103, 13);
             this.label6.TabIndex = 6;
@@ -148,7 +155,7 @@
             // label7
             // 
             this.label7.AutoSize = true;
-            this.label7.Location = new System.Drawing.Point(26, 343);
+            this.label7.Location = new System.Drawing.Point(26, 363);
             this.label7.Name = "label7";
             this.label7.Size = new System.Drawing.Size(89, 13);
             this.label7.TabIndex = 5;
@@ -201,21 +208,21 @@
             // 
             this.txtLocalUp.BackColor = System.Drawing.SystemColors.Window;
             this.txtLocalUp.ContextMenuStrip = this.KeyMenu;
-            this.txtLocalUp.Location = new System.Drawing.Point(138, 340);
+            this.txtLocalUp.Location = new System.Drawing.Point(138, 360);
             this.txtLocalUp.Name = "txtLocalUp";
             this.txtLocalUp.ReadOnly = true;
             this.txtLocalUp.Size = new System.Drawing.Size(138, 20);
-            this.txtLocalUp.TabIndex = 7;
+            this.txtLocalUp.TabIndex = 6;
             // 
             // txtLocalDown
             // 
             this.txtLocalDown.BackColor = System.Drawing.SystemColors.Window;
             this.txtLocalDown.ContextMenuStrip = this.KeyMenu;
-            this.txtLocalDown.Location = new System.Drawing.Point(138, 364);
+            this.txtLocalDown.Location = new System.Drawing.Point(138, 384);
             this.txtLocalDown.Name = "txtLocalDown";
             this.txtLocalDown.ReadOnly = true;
             this.txtLocalDown.Size = new System.Drawing.Size(138, 20);
-            this.txtLocalDown.TabIndex = 8;
+            this.txtLocalDown.TabIndex = 7;
             // 
             // label10
             // 
@@ -312,7 +319,7 @@
             this.btnHideSettings.Location = new System.Drawing.Point(566, 10);
             this.btnHideSettings.Name = "btnHideSettings";
             this.btnHideSettings.Size = new System.Drawing.Size(70, 13);
-            this.btnHideSettings.TabIndex = 0;
+            this.btnHideSettings.TabIndex = 1;
             this.btnHideSettings.TabStop = true;
             this.btnHideSettings.Text = "Hide Settings";
             this.btnHideSettings.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.btnHideSettings_LinkClicked);
@@ -332,10 +339,10 @@
             // ckExtIsLocal
             // 
             this.ckExtIsLocal.AutoSize = true;
-            this.ckExtIsLocal.Location = new System.Drawing.Point(29, 450);
+            this.ckExtIsLocal.Location = new System.Drawing.Point(29, 544);
             this.ckExtIsLocal.Name = "ckExtIsLocal";
             this.ckExtIsLocal.Size = new System.Drawing.Size(287, 17);
-            this.ckExtIsLocal.TabIndex = 10;
+            this.ckExtIsLocal.TabIndex = 12;
             this.ckExtIsLocal.Text = "Apply external volume changes to the current table only";
             this.ckExtIsLocal.UseVisualStyleBackColor = true;
             this.ckExtIsLocal.CheckedChanged += new System.EventHandler(this.ckExtIsLocal_CheckedChanged);
@@ -343,7 +350,7 @@
             // label12
             // 
             this.label12.AutoSize = true;
-            this.label12.Location = new System.Drawing.Point(46, 470);
+            this.label12.Location = new System.Drawing.Point(46, 564);
             this.label12.Name = "label12";
             this.label12.Size = new System.Drawing.Size(442, 52);
             this.label12.TabIndex = 43;
@@ -352,7 +359,7 @@
             // label13
             // 
             this.label13.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.label13.Location = new System.Drawing.Point(11, 531);
+            this.label13.Location = new System.Drawing.Point(11, 625);
             this.label13.Name = "label13";
             this.label13.Size = new System.Drawing.Size(620, 1);
             this.label13.TabIndex = 44;
@@ -360,10 +367,10 @@
             // btnSetUpOSD
             // 
             this.btnSetUpOSD.AutoSize = true;
-            this.btnSetUpOSD.Location = new System.Drawing.Point(285, 543);
+            this.btnSetUpOSD.Location = new System.Drawing.Point(285, 637);
             this.btnSetUpOSD.Name = "btnSetUpOSD";
             this.btnSetUpOSD.Size = new System.Drawing.Size(55, 13);
-            this.btnSetUpOSD.TabIndex = 12;
+            this.btnSetUpOSD.TabIndex = 15;
             this.btnSetUpOSD.TabStop = true;
             this.btnSetUpOSD.Text = "Customize";
             this.btnSetUpOSD.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.btnSetUpOSD_LinkClicked);
@@ -371,10 +378,10 @@
             // ckOSDOnHotkeys
             // 
             this.ckOSDOnHotkeys.AutoSize = true;
-            this.ckOSDOnHotkeys.Location = new System.Drawing.Point(13, 542);
+            this.ckOSDOnHotkeys.Location = new System.Drawing.Point(13, 636);
             this.ckOSDOnHotkeys.Name = "ckOSDOnHotkeys";
             this.ckOSDOnHotkeys.Size = new System.Drawing.Size(254, 17);
-            this.ckOSDOnHotkeys.TabIndex = 11;
+            this.ckOSDOnHotkeys.TabIndex = 13;
             this.ckOSDOnHotkeys.Text = "Show volume overlay when hotkeys are pressed";
             this.ckOSDOnHotkeys.UseVisualStyleBackColor = true;
             this.ckOSDOnHotkeys.CheckedChanged += new System.EventHandler(this.ckOSDOnHotkeys_CheckedChanged);
@@ -388,10 +395,10 @@
             // ckOSDOnAppSwitch
             // 
             this.ckOSDOnAppSwitch.AutoSize = true;
-            this.ckOSDOnAppSwitch.Location = new System.Drawing.Point(13, 565);
+            this.ckOSDOnAppSwitch.Location = new System.Drawing.Point(13, 659);
             this.ckOSDOnAppSwitch.Name = "ckOSDOnAppSwitch";
             this.ckOSDOnAppSwitch.Size = new System.Drawing.Size(265, 17);
-            this.ckOSDOnAppSwitch.TabIndex = 13;
+            this.ckOSDOnAppSwitch.TabIndex = 14;
             this.ckOSDOnAppSwitch.Text = "Show when switching to a new table or application";
             this.ckOSDOnAppSwitch.UseVisualStyleBackColor = true;
             this.ckOSDOnAppSwitch.CheckedChanged += new System.EventHandler(this.ckOSDOnAppSwitch_CheckedChanged);
@@ -428,7 +435,7 @@
             this.lnkSelectDevices.Location = new System.Drawing.Point(10, 100);
             this.lnkSelectDevices.Name = "lnkSelectDevices";
             this.lnkSelectDevices.Size = new System.Drawing.Size(106, 13);
-            this.lnkSelectDevices.TabIndex = 1;
+            this.lnkSelectDevices.TabIndex = 0;
             this.lnkSelectDevices.TabStop = true;
             this.lnkSelectDevices.Text = "Select audio devices";
             this.lnkSelectDevices.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.lnkSelectDevices_LinkClicked);
@@ -465,6 +472,12 @@
             // 
             // settingsPanel
             // 
+            this.settingsPanel.Controls.Add(this.label19);
+            this.settingsPanel.Controls.Add(this.ckEnableLocal2);
+            this.settingsPanel.Controls.Add(this.label18);
+            this.settingsPanel.Controls.Add(this.txtLocal2Down);
+            this.settingsPanel.Controls.Add(this.txtLocal2Up);
+            this.settingsPanel.Controls.Add(this.label17);
             this.settingsPanel.Controls.Add(this.label16);
             this.settingsPanel.Controls.Add(this.txtNightMode);
             this.settingsPanel.Controls.Add(this.label15);
@@ -497,8 +510,66 @@
             this.settingsPanel.Controls.Add(this.ckExtIsLocal);
             this.settingsPanel.Location = new System.Drawing.Point(1, 138);
             this.settingsPanel.Name = "settingsPanel";
-            this.settingsPanel.Size = new System.Drawing.Size(634, 586);
+            this.settingsPanel.Size = new System.Drawing.Size(634, 686);
             this.settingsPanel.TabIndex = 57;
+            // 
+            // label19
+            // 
+            this.label19.AutoSize = true;
+            this.label19.Location = new System.Drawing.Point(46, 439);
+            this.label19.Name = "label19";
+            this.label19.Size = new System.Drawing.Size(420, 39);
+            this.label19.TabIndex = 67;
+            this.label19.Text = resources.GetString("label19.Text");
+            // 
+            // ckEnableLocal2
+            // 
+            this.ckEnableLocal2.AutoSize = true;
+            this.ckEnableLocal2.Location = new System.Drawing.Point(29, 419);
+            this.ckEnableLocal2.Name = "ckEnableLocal2";
+            this.ckEnableLocal2.Size = new System.Drawing.Size(338, 17);
+            this.ckEnableLocal2.TabIndex = 10;
+            this.ckEnableLocal2.Text = "Enable independent per-table volume for secondary audio devices";
+            this.ckEnableLocal2.UseVisualStyleBackColor = true;
+            this.ckEnableLocal2.CheckedChanged += new System.EventHandler(this.ckEnableLocal2_CheckedChanged);
+            // 
+            // label18
+            // 
+            this.label18.AutoSize = true;
+            this.label18.Location = new System.Drawing.Point(305, 343);
+            this.label18.Name = "label18";
+            this.label18.Size = new System.Drawing.Size(98, 13);
+            this.label18.TabIndex = 65;
+            this.label18.Text = "Secondary devices";
+            // 
+            // txtLocal2Down
+            // 
+            this.txtLocal2Down.BackColor = System.Drawing.SystemColors.Window;
+            this.txtLocal2Down.ContextMenuStrip = this.KeyMenu;
+            this.txtLocal2Down.Location = new System.Drawing.Point(288, 384);
+            this.txtLocal2Down.Name = "txtLocal2Down";
+            this.txtLocal2Down.ReadOnly = true;
+            this.txtLocal2Down.Size = new System.Drawing.Size(138, 20);
+            this.txtLocal2Down.TabIndex = 9;
+            // 
+            // txtLocal2Up
+            // 
+            this.txtLocal2Up.BackColor = System.Drawing.SystemColors.Window;
+            this.txtLocal2Up.ContextMenuStrip = this.KeyMenu;
+            this.txtLocal2Up.Location = new System.Drawing.Point(288, 360);
+            this.txtLocal2Up.Name = "txtLocal2Up";
+            this.txtLocal2Up.ReadOnly = true;
+            this.txtLocal2Up.Size = new System.Drawing.Size(138, 20);
+            this.txtLocal2Up.TabIndex = 8;
+            // 
+            // label17
+            // 
+            this.label17.AutoSize = true;
+            this.label17.Location = new System.Drawing.Point(155, 343);
+            this.label17.Name = "label17";
+            this.label17.Size = new System.Drawing.Size(105, 13);
+            this.label17.TabIndex = 62;
+            this.label17.Text = "Default audio device";
             // 
             // label16
             // 
@@ -522,7 +593,7 @@
             // label15
             // 
             this.label15.AutoSize = true;
-            this.label15.Location = new System.Drawing.Point(46, 413);
+            this.label15.Location = new System.Drawing.Point(46, 507);
             this.label15.Name = "label15";
             this.label15.Size = new System.Drawing.Size(443, 26);
             this.label15.TabIndex = 59;
@@ -533,10 +604,10 @@
             // ckEnableJoystick
             // 
             this.ckEnableJoystick.AutoSize = true;
-            this.ckEnableJoystick.Location = new System.Drawing.Point(29, 393);
+            this.ckEnableJoystick.Location = new System.Drawing.Point(29, 487);
             this.ckEnableJoystick.Name = "ckEnableJoystick";
             this.ckEnableJoystick.Size = new System.Drawing.Size(135, 17);
-            this.ckEnableJoystick.TabIndex = 9;
+            this.ckEnableJoystick.TabIndex = 11;
             this.ckEnableJoystick.Text = "Enable joystick buttons";
             this.ckEnableJoystick.UseVisualStyleBackColor = true;
             this.ckEnableJoystick.CheckedChanged += new System.EventHandler(this.ckEnableJoystick_CheckedChanged);
@@ -544,7 +615,7 @@
             // pictureBox3
             // 
             this.pictureBox3.Image = global::PinVol.Properties.Resources.VolumeIcon;
-            this.pictureBox3.Location = new System.Drawing.Point(552, 542);
+            this.pictureBox3.Location = new System.Drawing.Point(552, 636);
             this.pictureBox3.Name = "pictureBox3";
             this.pictureBox3.Size = new System.Drawing.Size(80, 25);
             this.pictureBox3.TabIndex = 55;
@@ -592,15 +663,21 @@
             this.lblVersion.Location = new System.Drawing.Point(11, 116);
             this.lblVersion.Name = "lblVersion";
             this.lblVersion.Size = new System.Drawing.Size(42, 13);
-            this.lblVersion.TabIndex = 59;
+            this.lblVersion.TabIndex = 4;
             this.lblVersion.Text = "Version";
             this.lblVersion.Visible = false;
+            // 
+            // configToolCheckTimer
+            // 
+            this.configToolCheckTimer.Enabled = true;
+            this.configToolCheckTimer.Interval = 1000;
+            this.configToolCheckTimer.Tick += new System.EventHandler(this.configToolCheckTimer_Tick);
             // 
             // UIWin
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(640, 726);
+            this.ClientSize = new System.Drawing.Size(640, 826);
             this.Controls.Add(this.lblVersion);
             this.Controls.Add(this.picNightMode);
             this.Controls.Add(this.settingsPanel);
@@ -690,6 +767,13 @@
         private System.Windows.Forms.Timer joystickRescanTimer;
         private System.Windows.Forms.ToolTip tipVersion;
         private System.Windows.Forms.Label lblVersion;
+        private System.Windows.Forms.Label label17;
+        private System.Windows.Forms.Label label18;
+        private System.Windows.Forms.TextBox txtLocal2Down;
+        private System.Windows.Forms.TextBox txtLocal2Up;
+        private System.Windows.Forms.Label label19;
+        private System.Windows.Forms.CheckBox ckEnableLocal2;
+        private System.Windows.Forms.Timer configToolCheckTimer;
     }
 }
 

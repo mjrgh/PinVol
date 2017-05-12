@@ -30,7 +30,15 @@ namespace PinVol
         }
 
         // per-application volume data list
-        Dictionary<String, float> appVol = new Dictionary<String, float>();
+        class LocalVol
+        {
+            public LocalVol() { primary = secondary = 1.0f; }
+            public LocalVol(float p) { primary = p; secondary = 1.0f; }
+            public LocalVol(float p, float s) { primary = p; secondary = s; }
+            public float primary;       // primary audio device local volume
+            public float secondary;     // secondary audio device volume, as a fraction of primary
+        }
+        Dictionary<String, LocalVol> appVol = new Dictionary<String, LocalVol>();
 
         // path to context volume settings files
         String dbPath = "PinVolTables.ini";
@@ -110,10 +118,12 @@ namespace PinVol
                                 continue;
 
                             // app lines have the format <application name><tab><level as percentage>
-                            Match m = Regex.Match(line, @"^(.*)\t(\d+)$");
+                            Match m = Regex.Match(line, @"^([^\t]*)\t(\d+)(?:\t(\d+))?$");
                             if (m.Success)
                             {
-                                appVol[m.Groups[1].Value] = int.Parse(m.Groups[2].Value) / 100.0f;
+                                float primary = int.Parse(m.Groups[2].Value) / 100.0f;
+                                float secondary = m.Groups[3].Success ? int.Parse(m.Groups[3].Value) / 100.0f : primary;
+                                appVol[m.Groups[1].Value] = new LocalVol(primary, secondary);
                                 continue;
                             }
 
@@ -186,8 +196,9 @@ namespace PinVol
             lines.Add("");
 
             // add the volume data
-            foreach (KeyValuePair<String, float> p in appVol)
-                lines.Add(p.Key + "\t" + Math.Round(p.Value * 100.0f).ToString());
+            foreach (KeyValuePair<String, LocalVol> p in appVol)
+                lines.Add(p.Key + "\t" + Math.Round(p.Value.primary * 100.0f).ToString()
+                    + "\t" + Math.Round(p.Value.secondary * 100.0f).ToString());
 
             // write it out
             try
@@ -212,22 +223,35 @@ namespace PinVol
             }
         }
 
-        // Save the current local volume for the current app in the database
+        // current foreground application or table
         String curApp;
-        void SetLocalVol(float vol)
+
+        // Save the current local volume for the current app/table in the database
+        void SetLocalVol(LocalVol vol) 
+        { 
+            SetLocalVol(vol.primary, vol.secondary);
+        }
+        void SetLocalVol(float primary, float secondary)
         {
             // update the internal local volume
-            localVolume = LimitVolume(vol);
+            localVolume = primary = LimitVolume(primary);
+            local2Volume = secondary = LimitVolume(secondary);
 
             // update the local database if it's a change to the stored value
-            if (curApp != null
-                && (!appVol.ContainsKey(curApp) || appVol[curApp] != localVolume))
+            if (curApp != null)
             {
-                // update the in-memory database
-                appVol[curApp] = localVolume;
-
-                // mark the database as dirty
-                SetLocalVolDirty();
+                LocalVol v;
+                if (!appVol.ContainsKey(curApp))
+                {
+                    appVol[curApp] = new LocalVol(primary, secondary);
+                    SetLocalVolDirty();
+                }
+                else if ((v = appVol[curApp]).primary != primary || v.secondary != secondary)
+                {
+                    v.primary = primary;
+                    v.secondary = secondary;
+                    SetLocalVolDirty();
+                }
             }
         }
 
@@ -236,6 +260,9 @@ namespace PinVol
 
         // volume OSD window
         OSDWin osdwin;
+
+        // volume type last shown in OSD window
+        public OSDWin.OSDType osdType = OSDWin.OSDType.Local;
 
         // time to turn off the OSD
         DateTime osdOffTime = DateTime.Now;
@@ -249,9 +276,18 @@ namespace PinVol
         // There are actually two global volume levels, one per mode.  Mode 0
         // is day mode, mode 1 is night mode.  'volumeMode' has the current
         // mode, so it's an index into the global volume array.
+        //
+        // And there are two local volumes as well: one for the default audio
+        // device, another for secondary devices.  This allows tables levels
+        // to be tweaked independently for each device.  Virtual pinball
+        // systems often have two sound systems, one for the music/ROM sounds
+        // and one for mechanical sound effects from the playfield.  Tables
+        // can differ enough in the balance between the two types of effects
+        // that it can be useful to control them separately.
         public float[] globalVolume = new float[2];
         public bool globalMute = false;
         public float localVolume = 0.0f;
+        public float local2Volume = 0.0f;
         public VolumeMode volumeMode = VolumeMode.Day;
         public VolumeModeSource volumeModeSource = VolumeModeSource.None;
 
@@ -496,7 +532,10 @@ namespace PinVol
             Action handler;
         }
 
-        KeyField globalUpKey, globalDownKey, nightModeKey, globalMuteKey, localUpKey, localDownKey;
+        KeyField globalUpKey, globalDownKey;
+        KeyField nightModeKey, globalMuteKey;
+        KeyField localUpKey, localDownKey;
+        KeyField local2UpKey, local2DownKey;
 
         // configuration data
         public Config cfg;
@@ -708,6 +747,10 @@ namespace PinVol
             EnableJoysticks(cfg.EnableJoystick);
             ckEnableJoystick.Checked = cfg.EnableJoystick;
 
+            // enable independent per-table volume settings for secondary audio devices if desired
+            EnableLocal2(cfg.EnableLocal2);
+            ckEnableLocal2.Checked = cfg.EnableLocal2;
+
             // register for device notification broadcast messages from the system,
             // so that we can detect a new joystick being plugged in
             UsbNotification.Register(this.Handle);
@@ -746,8 +789,12 @@ namespace PinVol
             LoadSavedVols();
 
             // start with the local volume for "System"
-            localVolume = LimitVolume(appVol.ContainsKey(AppMonitor.GlobalContextName) ?
-                appVol[AppMonitor.GlobalContextName] : 1.0f);
+            LocalVol v = appVol.ContainsKey(AppMonitor.GlobalContextName) ? 
+                appVol[AppMonitor.GlobalContextName] : new LocalVol(1.0f, 1.0f);
+
+            // pull out the primary and secondary local volumes, limiting the valid levels
+            localVolume = LimitVolume(v.primary);
+            local2Volume = LimitVolume(v.secondary);
 
             // If we didn't read valid saved global volumes, apply defaults.
             if (globalVolume[0] <= 0)
@@ -779,11 +826,15 @@ namespace PinVol
             nightModeKey = new KeyField(this, "Night Mode", cfg.keys["nightMode"], txtNightMode, false,
                 () => { ToggleNightMode(VolumeModeSource.Keyboard, cfg.OSDOnHotkeys ? OSDWin.OSDType.Global : OSDWin.OSDType.None); });
             globalMuteKey = new KeyField(this, "Mute", cfg.keys["mute"], txtMute, false,
-                () => { ToggleMute(cfg.OSDOnHotkeys ? osdwin.osdType : OSDWin.OSDType.None); });
+                () => { ToggleMute(cfg.OSDOnHotkeys ? osdType : OSDWin.OSDType.None); });
             localUpKey = new KeyField(this, "Table Volume Up", cfg.keys["localVolUp"], txtLocalUp, true,
                 () => { LocalVolumeAdjust(.01f, cfg.OSDOnHotkeys ? OSDWin.OSDType.Local : OSDWin.OSDType.None); });
             localDownKey = new KeyField(this, "Table Volume Down", cfg.keys["localVolDown"], txtLocalDown, true,
                 () => { LocalVolumeAdjust(-.01f, cfg.OSDOnHotkeys ? OSDWin.OSDType.Local : OSDWin.OSDType.None); });
+            local2UpKey = new KeyField(this, "Table Volume Up (Secondary)", cfg.keys["local2VolUp"], txtLocal2Up, true,
+                () => { Local2VolumeAdjust(.01f, cfg.OSDOnHotkeys ? OSDWin.OSDType.Local2 : OSDWin.OSDType.None); });
+            local2DownKey = new KeyField(this, "Table Volume Down (Secondary)", cfg.keys["local2VolDown"], txtLocal2Down, true,
+                () => { Local2VolumeAdjust(-.01f, cfg.OSDOnHotkeys ? OSDWin.OSDType.Local2 : OSDWin.OSDType.None); });
 
             // set the initial UI state to the loaded config values
             AllKeyConfigToUI();
@@ -794,11 +845,31 @@ namespace PinVol
             // log startup status
             LogKeyStatus("Hotkeys assigned:");
 
-            // set up the volume overlay window
-            osdwin = new OSDWin(this);
-            osdwin.Opacity = 0;
-            osdwin.Visible = false;
-            osdwin.Show();
+            // no OSD window yet (we create it as needed)
+            osdwin = null;
+        }
+
+        // enable/disable independent per-table settings for secondary audio devices
+        void EnableLocal2(bool enable)
+        {
+            // register or unregister the hotkeys for the secondary local controls
+            if (local2UpKey != null && local2DownKey != null)
+            {
+                if (enable)
+                {
+                    local2UpKey.Register(this);
+                    local2DownKey.Register(this);
+                }
+                else
+                {
+                    local2UpKey.Unregister();
+                    local2DownKey.Unregister();
+                }
+            }
+
+            // enable or disable the hotkey text fields
+            txtLocal2Up.Enabled = enable;
+            txtLocal2Down.Enabled = enable;
         }
 
         // enable/disable joystick input
@@ -900,6 +971,8 @@ namespace PinVol
             globalMuteKey.ConfigToUI();
             localUpKey.ConfigToUI();
             localDownKey.ConfigToUI();
+            local2UpKey.ConfigToUI();
+            local2DownKey.ConfigToUI();
         }
 
         private void LogKeyStatus(String header)
@@ -911,6 +984,8 @@ namespace PinVol
             Log.Info("  Mute toggle: " + globalMuteKey.Status());
             Log.Info("  Table volume up: " + localUpKey.Status());
             Log.Info("  Table volume down: " + localDownKey.Status());
+            Log.Info("  Table volume up 2nd device: " + local2UpKey.Status());
+            Log.Info("  Table volume down 2nd device: " + local2DownKey.Status());
         }
 
         // our private GUID for making system volume level changes, so that we can
@@ -986,7 +1061,14 @@ namespace PinVol
 
         private void LocalVolumeAdjust(float delta, OSDWin.OSDType osdType)
         {
-            SetLocalVol(localVolume + delta);
+            SetLocalVol(localVolume + delta, local2Volume);
+            CheckMute();
+            UpdateVolume(osdType);
+        }
+
+        private void Local2VolumeAdjust(float delta, OSDWin.OSDType osdType)
+        {
+            SetLocalVol(localVolume, local2Volume + delta);
             CheckMute();
             UpdateVolume(osdType);
         }
@@ -1018,7 +1100,7 @@ namespace PinVol
             // is the new system volume, so we have to figure out how this affects
             // our internal volume levels, which are split into the 'global' and
             // 'local' components.  This depends on the configuration setting
-            // that tells us whether to apply external changs to the global or
+            // that tells us whether to apply external changes to the global or
             // local level.  In either case, we're simply solving for the affected
             // variable in our system volume formula:
             //
@@ -1026,7 +1108,12 @@ namespace PinVol
             //
             if (cfg.ExtVolIsLocal)
             {
-                SetLocalVol(sysvol / globalVolume[(int)volumeMode]);
+                // figure the new local volume that yields the new system volume
+                // for the current global volume
+                float newLocalVol = sysvol / globalVolume[(int)volumeMode];
+
+                // set the new volume
+                SetLocalVol(newLocalVol, local2Volume);
             }
             else
             {
@@ -1051,9 +1138,20 @@ namespace PinVol
                     // start with the global volume, adjusted by the device's relative level
                     float vol = ad.relLevel * globalVolume[(int)volumeMode];
 
-                    // if the device uses the local app volume, apply that as well
+                    // If the device uses the local app volume, apply the appropriate
+                    // local volume.
                     if (ad.useLocal)
-                        vol *= localVolume;
+                    { 
+                        // Figure out which volume to use.  If this is a secondary device
+                        // (not the default device), and we're using the independent local
+                        // volume control for secondary devices, use the secondary volume.
+                        // Otherwise use the main local volume.
+                        float lcl = (ad != defaultDevice && cfg.EnableLocal2) ? 
+                            local2Volume : localVolume;
+
+                        // apply it
+                        vol *= lcl;
+                    }
 
                     // update the volume in the endpoing
                     ad.epvol.SetMasterVolumeLevelScalar(LimitVolume(vol), ref OurEventGuid);
@@ -1075,26 +1173,36 @@ namespace PinVol
             ShowOSD(osdType, osdHotkeyTime);
         }
 
-        private void ShowOSD(OSDWin.OSDType osdType, int timeInMs)
+        private void ShowOSD(OSDWin.OSDType newOsdType, int timeInMs)
         {
+            // if there's no OSD window currently displayed, and a volume type
+            // was specified, create the window
+            if (osdwin == null && newOsdType != OSDWin.OSDType.None)
+            {
+                osdwin = new OSDWin(this);
+                osdwin.Opacity = 0;
+                osdwin.Visible = false;
+                osdwin.Show();
+            }
+
+            // switch the OSD volume type if one was specified
+            if (newOsdType != OSDWin.OSDType.None)
+                osdType = newOsdType;
+
+            // if there's an OSD window, update it
             if (osdwin != null)
             {
-                // switch the OSD volume type if one was specified
-                if (osdType != OSDWin.OSDType.None)
-                    osdwin.osdType = osdType;
-
                 // refresh the OSD window
                 osdwin.Invalidate();
 
                 // If desired, show it and start/restart the timer
-                if (osdType != OSDWin.OSDType.None && !osdwin.InSetup())
+                if (newOsdType != OSDWin.OSDType.None && !osdwin.InSetup())
                 {
                     osdwin.Opacity = 1.0f;
                     osdwin.Visible = true;
                     SetTimer(ref osdOffTime, timeInMs);
                     updateTimer.Enabled = true;
                 }
-
             }
         }
 
@@ -1107,7 +1215,7 @@ namespace PinVol
 
         private void trkLocalVol_Scroll(object sender, EventArgs e)
         {
-            SetLocalVol(trkLocalVol.Value / 100.0f);
+            SetLocalVol(trkLocalVol.Value / 100.0f, local2Volume);
             CheckMute();
             UpdateVolume(OSDWin.OSDType.None);
         }
@@ -1121,6 +1229,11 @@ namespace PinVol
             globalDownKey.Register(this);
             globalMuteKey.Register(this);
             nightModeKey.Register(this);
+            if (cfg.EnableLocal2)
+            {
+                local2UpKey.Register(this);
+                local2DownKey.Register(this);
+            }
         }
 
         // unregister all keys
@@ -1132,6 +1245,11 @@ namespace PinVol
             globalDownKey.Unregister();
             globalMuteKey.Unregister();
             nightModeKey.Unregister();
+            if (cfg.EnableLocal2)
+            {
+                local2UpKey.Unregister();
+                local2DownKey.Unregister();
+            }
         }
 
         // On making a change to any key assignments, we'll un-register ALL of the
@@ -1232,14 +1350,17 @@ namespace PinVol
                 cfgDirty = false;
             }
 
-            // fade the volume window
-            if (osdwin.Visible && !osdwin.InSetup() && now >= osdOffTime)
+            // fade the volume window, if present
+            if (osdwin != null && !osdwin.InSetup() && now >= osdOffTime)
             {
                 // fade out by a 10% step; if that takes us to fully transparent, make
                 // the window explicitly invisible, which will stop the timed process
                 osdwin.Opacity -= .1;
                 if (osdwin.Opacity == 0)
-                    osdwin.Visible = false;
+                {
+                    osdwin.Close();
+                    osdwin = null;
+                }
             }
 
             // flush the volume database if we have unsaved changes
@@ -1257,7 +1378,7 @@ namespace PinVol
             }
 
             // disable the timer if there's no more pending work
-            if (!(cfgDirty || regDirty || localVolDirty || globalVolDirty || (osdwin.Visible && !osdwin.InSetup())))
+            if (!(cfgDirty || regDirty || localVolDirty || globalVolDirty || (osdwin != null && !osdwin.InSetup())))
                 updateTimer.Enabled = false;
         }
 
@@ -1304,6 +1425,8 @@ namespace PinVol
             globalMuteKey.Cleanup();
             localUpKey.Cleanup();
             localDownKey.Cleanup();
+            local2UpKey.Cleanup();
+            local2DownKey.Cleanup();
             nightModeKey.Cleanup();
         }
 
@@ -1396,9 +1519,29 @@ namespace PinVol
             }
         }
 
+        private void ckEnableLocal2_CheckedChanged(object sender, EventArgs e)
+        {
+            // check for a change in status
+            bool f = ckEnableLocal2.Checked;
+            if (cfg.EnableLocal2 != f)
+            {
+                // save the config update
+                cfg.EnableLocal2 = f;
+                SetCfgDirty();
+
+                // enable or disable secondary volume control
+                EnableLocal2(f);
+            }
+        }
+
+
         private void btnSetUpOSD_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
-            osdwin.Setup(true);
+            if (osdwin == null)
+            {
+                ShowOSD(OSDWin.OSDType.Local, 0);
+                osdwin.Setup(true);
+            }
         }
 
         private void keyMenuNoKey_Click(object sender, EventArgs e)
@@ -1440,8 +1583,8 @@ namespace PinVol
                 }
 
                 // if desired, bring up the OSD
-                if (cfg.OSDOnAppSwitch && osdwin != null)
-                    ShowOSD(osdwin.osdType, osdAppSwitchTime);
+                if (cfg.OSDOnAppSwitch)
+                    ShowOSD(osdType, osdAppSwitchTime);
             }
 
             // check for new errors
@@ -1479,6 +1622,12 @@ namespace PinVol
         private void picLogo_Click(object sender, EventArgs e)
         {
             lblVersion.Visible = !lblVersion.Visible;
+        }
+
+        private void configToolCheckTimer_Tick(object sender, EventArgs e)
+        {
+            // check for recent Config Tool notification timeouts
+            Program.configToolTimeout();
         }
 
     }

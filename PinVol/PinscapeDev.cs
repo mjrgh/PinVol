@@ -194,19 +194,30 @@ namespace PinVol
             // read a joystick report
             byte[] buf = ReadUSB();
 
-            // if that failed, we can't be in night mode
+            // if that failed, return the previous status
             if (buf == null)
-                return false;
+                return nightModeStatus;
 
-            // Parse the report.  The parts we're interested in are:
+            // only pay attention to regular status reports - the high
+            // bit of the second byte must be zero
+            if ((buf[2] & 0x80) != 0)
+                return nightModeStatus;
+
+            // Parse the report and remember the new status.  The parts 
+            // we're interested in are:
             //
             //  [0] = USB report ID.  Always 0.
             //  [1] = Status byte 0.  Bit fields:
-            //          0x01 -> plunger enabled
             //          0x02 -> night mode engaged
             const byte NIGHT_MODE_BIT = 0x02;
-            return ((buf[1] & NIGHT_MODE_BIT) != 0);
+            nightModeStatus = (buf[1] & NIGHT_MODE_BIT) != 0;
+
+            // return the new status
+            return nightModeStatus;
         }
+
+        // last night mode status
+        bool nightModeStatus = false;
 
         private IntPtr OpenFile()
         {

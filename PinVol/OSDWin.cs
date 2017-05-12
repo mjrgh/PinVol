@@ -15,8 +15,9 @@ namespace PinVol
         public enum OSDType
         {
             None,
-            Local,
-            Global
+            Local,      // local table setting for default audio device
+            Local2,     // local table setting for secondary audio device
+            Global      // global volume setting
         };
 
         public OSDWin(UIWin mainwin)
@@ -36,9 +37,6 @@ namespace PinVol
 
         // the main window (source of the current volume level)
         UIWin mainwin;
-
-        // type of volume we're currently displaying (global or local)
-        public OSDType osdType = OSDType.Local;
 
         // setup mode
         bool setupMode = false;
@@ -75,7 +73,7 @@ namespace PinVol
                 Enabled = true;
 
                 // switch to local volume display, since that uses the larger text caption
-                osdType = OSDType.Local;
+                mainwin.osdType = OSDType.Local;
 
                 // flag that we're now in setup mode
                 setupMode = true;
@@ -128,18 +126,28 @@ namespace PinVol
             String muted = mainwin.globalMute ? " (Muted)" : "";
 
             // draw the selected volume level
-            if (osdType == OSDType.Local)
+            switch (mainwin.osdType)
             {
-                DrawVolumeBar(gr,
-                    "<< " + mainwin.appmon.FriendlyName + " >>\nTable Volume   " 
-                    + Math.Round(mainwin.localVolume * 100) + "%" + muted,
-                    mainwin.localVolume, r);
-            }
-            else
-            {
-                var v = mainwin.globalVolume[(int)mainwin.volumeMode];
-                DrawVolumeBar(gr,
-                    "Global Volume   " + Math.Round(v * 100) + "%" + muted, v, r);
+                case OSDType.Local:
+                    DrawVolumeBar(gr,
+                        "<< " + mainwin.appmon.FriendlyName + " >>\nTable Volume   " 
+                        + Math.Round(mainwin.localVolume * 100) + "%" + muted,
+                        mainwin.localVolume, r);
+                    break;
+
+                case OSDType.Local2:
+                    DrawVolumeBar(gr,
+                        "<< " + mainwin.appmon.FriendlyName + " >>\nTable Volume (Secondary)   "
+                        + Math.Round(mainwin.local2Volume * 100) + "%" + muted,
+                        mainwin.local2Volume, r);
+                    break;
+
+                case OSDType.Global:
+                case OSDType.None:
+                    var v = mainwin.globalVolume[(int)mainwin.volumeMode];
+                    DrawVolumeBar(gr,
+                        "Global Volume   " + Math.Round(v * 100) + "%" + muted, v, r);
+                    break;
             }
         }
 
@@ -175,60 +183,72 @@ namespace PinVol
             // select the brushes
             Brush black = Brushes.Black;
             Brush rcbrush, txbrush;
-            if (osdType == OSDType.Local)
-                rcbrush = txbrush = Brushes.Lime;
-            else if (mainwin.volumeMode == UIWin.VolumeMode.Night)
-                rcbrush = txbrush = Brushes.Blue;
-            else
-                rcbrush = txbrush = Brushes.DeepSkyBlue;
+            switch (mainwin.osdType)
+            {
+                case OSDType.Local:
+                    rcbrush = txbrush = Brushes.Lime;
+                    break;
+
+                case OSDType.Local2:
+                    rcbrush = txbrush = Brushes.Violet;
+                    break;
+
+                case OSDType.Global:
+                case OSDType.None:
+                default:
+                    if (mainwin.volumeMode == UIWin.VolumeMode.Night)
+                        rcbrush = txbrush = Brushes.Blue;
+                    else
+                        rcbrush = txbrush = Brushes.DeepSkyBlue;
+                    break;
+            }
 
             // create an outline pen if needed
-            Pen rcpen = null;
-            int penwid = 2;
             bool mute = mainwin.globalMute;
-            if (mute)
-                rcpen = new Pen(rcbrush, penwid);
-
-            // draw the ticks
-            for (int x = left ; x < right ; x += tickwid + ticksp)
+            int penwid = 2;
+            using (Pen rcpen = mute ? new Pen(rcbrush, penwid) : null)
             {
-                // get the area of this tick
-                Rectangle rc;
-                Rectangle halftick = new Rectangle(x + tickwid / 4, top + barsz.Height / 4, tickwid / 2, barsz.Height / 2);
-                bool drawhalf = false;
-                if (x + tickwid <= volwid)
+                // draw the ticks
+                for (int x = left; x < right; x += tickwid + ticksp)
                 {
-                    // we're still below the volume level, so draw a whole tick
-                    rc = new Rectangle(x, top, tickwid, top + barsz.Height);
-                }
-                else if (x < volwid)
-                {
-                    // this tick is partially within the volume level, so draw a portion
-                    // of the tick plus the small tick
-                    rc = new Rectangle(x, top, volwid - x, top + barsz.Height);
-                    if (rc.Right > halftick.Left)
-                        halftick = new Rectangle(rc.Right, halftick.Top, halftick.Right - rc.Right, halftick.Height);
-                    drawhalf = true;
-                }
-                else
-                {
-                    // We're entirely beyond the volume level.  Draw a half tick.
-                    rc = halftick;
-                }
-
-                // draw the rectangle or outline
-                if (mute)
-                    gr.DrawRectangle(rcpen, rc);
-                else
-                    gr.FillRectangle(rcbrush, rc);
-
-                // if we have a partial tick, also draw the half tick
-                if (drawhalf)
-                {
-                    if (mute)
-                        gr.DrawRectangle(rcpen, halftick);
+                    // get the area of this tick
+                    Rectangle rc;
+                    Rectangle halftick = new Rectangle(x + tickwid / 4, top + barsz.Height / 4, tickwid / 2, barsz.Height / 2);
+                    bool drawhalf = false;
+                    if (x + tickwid <= volwid)
+                    {
+                        // we're still below the volume level, so draw a whole tick
+                        rc = new Rectangle(x, top, tickwid, top + barsz.Height);
+                    }
+                    else if (x < volwid)
+                    {
+                        // this tick is partially within the volume level, so draw a portion
+                        // of the tick plus the small tick
+                        rc = new Rectangle(x, top, volwid - x, top + barsz.Height);
+                        if (rc.Right > halftick.Left)
+                            halftick = new Rectangle(rc.Right, halftick.Top, halftick.Right - rc.Right, halftick.Height);
+                        drawhalf = true;
+                    }
                     else
-                        gr.FillRectangle(rcbrush, halftick);
+                    {
+                        // We're entirely beyond the volume level.  Draw a half tick.
+                        rc = halftick;
+                    }
+
+                    // draw the rectangle or outline
+                    if (mute)
+                        gr.DrawRectangle(rcpen, rc);
+                    else
+                        gr.FillRectangle(rcbrush, rc);
+
+                    // if we have a partial tick, also draw the half tick
+                    if (drawhalf)
+                    {
+                        if (mute)
+                            gr.DrawRectangle(rcpen, halftick);
+                        else
+                            gr.FillRectangle(rcbrush, halftick);
+                    }
                 }
             }
 

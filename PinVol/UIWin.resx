@@ -126,10 +126,11 @@ can adjust the volume via the cabinet buttons during play.
 You can minimize this window if you wish, to get it out of the way while running other programs.</value>
   </data>
   <data name="label3.Text" xml:space="preserve">
-    <value>Table volume keys. These keys adjust the volume for the CURRENT table/program only. PinVol 
-remembers the individual level for each context, and switches back to the saved level each 
-time you return to a table or app.  The context volume is remembered as a percentage of the 
-Global level, so changes to the global level will be applied proportionally to all tables and apps.</value>
+    <value>Table volume keys. These keys adjust the volume for the CURRENT table/program only. PinVol remembers the 
+individual level for each context, and switches back to the saved level each time you return to a table 
+or app.  The context volume is remembered as a percentage of the Global level, so changes to the global 
+level will be applied proportionally to all tables and apps.
+</value>
   </data>
   <metadata name="KeyMenu.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
     <value>138, 17</value>
@@ -146,6 +147,11 @@ this box, external changes will apply to the current table only.</value>
   <metadata name="appCheckTimer.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
     <value>241, 17</value>
   </metadata>
+  <data name="label19.Text" xml:space="preserve">
+    <value>Check this box if you want to set the per-table volume level independently for secondary
+audio devices.  This will let you map an additional pair of keys to control the per-table
+volume for secondary devices.</value>
+  </data>
   <assembly alias="System.Drawing" name="System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
   <data name="picNightMode.InitialImage" type="System.Drawing.Bitmap, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
     <value>
@@ -177,6 +183,12 @@ this box, external changes will apply to the current table only.</value>
   </metadata>
   <metadata name="joystickRescanTimer.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
     <value>377, 17</value>
+  </metadata>
+  <metadata name="tipVersion.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <value>538, 17</value>
+  </metadata>
+  <metadata name="configToolCheckTimer.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
+    <value>645, 17</value>
   </metadata>
   <metadata name="$this.TrayHeight" type="System.Int32, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">
     <value>48</value>

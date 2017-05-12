@@ -50,6 +50,10 @@ namespace PinVol
                 StringBuilder buf = new StringBuilder(n);
                 if (GetWindowText(curwin, buf, n) > 0)
                 {
+                    // get the process and thread ID for the window
+                    int pid, tid = GetWindowThreadProcessId(curwin, out pid);
+
+                    // see what we have for the title
                     String title = buf.ToString();
                     if (title == "Visual Pinball Player")
                     {
@@ -57,7 +61,6 @@ namespace PinVol
                         // running game in its title, but the design window does; it'll
                         // be running in the background in the same thread.  Search for
                         // the designer window and pull the game name out of that.
-                        int pid, tid = GetWindowThreadProcessId(curwin, out pid);
                         EnumThreadWindows(tid, (IntPtr hwnd, IntPtr lparam) =>
                         {
                             // check the title of this window
@@ -81,6 +84,15 @@ namespace PinVol
                     {
                         // The PinballX front end is running
                         app = title;
+
+                        // remember this process ID as PinballX, so that we can recognize
+                        // other windows from this process even if they have different names
+                        pbxPid = pid;
+                    }
+                    else if (pid == pbxPid)
+                    {
+                        // the window is part of the PinballX process
+                        app = "PinballX";
                     }
                     else
                     {
@@ -102,7 +114,8 @@ namespace PinVol
             return false;
         }
 
-
+        // PinballX process ID, if known
+        int pbxPid = -1;
         
         // Win32 imports
 

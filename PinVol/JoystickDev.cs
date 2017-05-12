@@ -21,6 +21,7 @@ namespace PinVol
             this.nButtons = js.Capabilities.ButtonCount;
             this.hWait = new EventWaitHandle(false, EventResetMode.AutoReset);
             this.productName = js.Information.ProductName.TrimEnd('\0');
+            this.isPinscape = Regex.IsMatch(this.productName, @"Pinscape\s*Controller");
         }
 
         // our DirectInput instance
@@ -37,6 +38,7 @@ namespace PinVol
         public int nButtons;            // number of buttons
         public WaitHandle hWait;        // event wait handle, for state change notifications
         public Thread thread;           // state monitor thread
+        public bool isPinscape;         // is this a Pinscape controller?
 
         // Get the unit name for display purposes.  If there's only one joystick
         // in the system, the name is simply "Joystick".  Otherwise, it's 
@@ -243,11 +245,11 @@ namespace PinVol
                         break;
 
                     case 0:
-                        // joystick handle
+                        // joystick event
                         JoystickEventHandler handler = JoystickButtonChanged;
                         if (handler != null)
                         {
-                            // get the current joystick state, and scan for button changes
+                            // get the current joystick state
                             try
                             {
                                 js.GetCurrentState(ref state);
@@ -260,6 +262,16 @@ namespace PinVol
                                 win.BeginInvoke((Action)delegate { win.OnJoystickError(this); });
                                 return;
                             }
+
+                            // Ignore events from Pinscape devices when the Pinscape config
+                            // tool is running.  The device sends special status reports to
+                            // the config tool while it's running; these are piggybacked on
+                            // the joystick interface, so they look like random garbage to
+                            // joystick readers.
+                            if (isPinscape && Program.configToolRunning)
+                                break;
+
+                            // scan for button changes
                             for (int i = 0; i < buttons.Length; ++i)
                             {
                                 // if the button has changed, update it and fire an event
@@ -274,18 +286,7 @@ namespace PinVol
                                         buttons[i].repeat = DateTime.Now.AddMilliseconds(keyDelay);
 
                                     // Fire the event.  Note that we need to use Invoke to post the
-                                    // event to the UI thread.  And we need the bizarre extra layer 
-                                    // of closure wrapping because we need to capture the current
-                                    // state of the looping variable, hence we need to generate a
-                                    // closure dynamically; the generated closure expressed in the
-                                    // inner anonymous function block is the return value of the
-                                    // outer anon block.  And finally, we need all of those parens
-                                    // wrapping the whole thing because of C# syntax requirements;
-                                    // C# syntax really wants a method name that the compiler can
-                                    // wrap up in something similar to what we're doing that doesn't
-                                    // fit our needs here, so we need three parens plus a cast (for
-                                    // the fourth paren, plus the containing function paren for an
-                                    // astounding fifth paren) to convince it otherwise.
+                                    // event to the UI thread.
                                     win.BeginInvoke(invoker(i, false));
                                 }
                             }
@@ -297,18 +298,22 @@ namespace PinVol
                         return;
                 }
                 
-                // fire any autorepeat key events
-                var t = DateTime.Now;
-                for (int i = 0 ; i < buttons.Length ; ++i)
+                // Fire any autorepeat key events.  Skip this if the config tool is
+                // running, for the same reason we don't send primary key events.
+                if (!(isPinscape && Program.configToolRunning))
                 {
-                    var b = buttons[i];
-                    if (b.down && t >= b.repeat)
+                    var t = DateTime.Now;
+                    for (int i = 0; i < buttons.Length; ++i)
                     {
-                        // fire the event
-                        win.BeginInvoke(invoker(i, true));
+                        var b = buttons[i];
+                        if (b.down && t >= b.repeat)
+                        {
+                            // fire the event
+                            win.BeginInvoke(invoker(i, true));
 
-                        // set the next repeat time
-                        b.repeat = DateTime.Now.AddMilliseconds(keySpeed);
+                            // set the next repeat time
+                            b.repeat = DateTime.Now.AddMilliseconds(keySpeed);
+                        }
                     }
                 }
             }

@@ -22,6 +22,8 @@ namespace PinVol
             keys["mute"] = new KeyInfo(Keys.F8, false, false, false, true);
             keys["localVolUp"] = new KeyInfo(Keys.VolumeUp);
             keys["localVolDown"] = new KeyInfo(Keys.VolumeDown);
+            keys["local2VolUp"] = new KeyInfo(Keys.None);
+            keys["local2VolDown"] = new KeyInfo(Keys.None);
             keys["nightMode"] = new KeyInfo(Keys.F7, false, false, false, true);
 
             // set the default OSD window to the right side of the screen
@@ -38,6 +40,7 @@ namespace PinVol
         public bool UnMuteOnVolChange = true;           // turn off muting whenever the volume is changed
         public Rectangle OSDPos = new Rectangle(50, 50, 180, 680);    // overlay position
         public bool EnableJoystick = false;             // enable joystick input
+        public bool EnableLocal2 = false;               // enable independent control over secondary device volume per table
 
         // Audio device record.  This represents the saved config data
         // corresponding to a UIWin.AudioDevice object.  
@@ -229,6 +232,8 @@ namespace PinVol
                                 UnMuteOnVolChange = bool.Parse(value);
                             else if (varname == "enablejoystick")
                                 EnableJoystick = bool.Parse(value);
+                            else if (varname == "enablesecondary")
+                                EnableLocal2 = bool.Parse(value);
                             else
                                 Log.Error("Invalid key name in config file at line " + lineNum + ": " + m.Groups[1].Value);
                         }
@@ -277,6 +282,7 @@ namespace PinVol
                 lines.Add("OSDRotation = " + OSDRotation);
                 lines.Add("UnMuteOnVolChange = " + UnMuteOnVolChange);
                 lines.Add("EnableJoystick = " + EnableJoystick);
+                lines.Add("EnableSecondary = " + EnableLocal2);
 
                 // add the active device list
                 foreach (var kvp in devices)
@@ -370,7 +376,7 @@ namespace PinVol
                     // joystick button
                     JoystickDev dev = JoystickDev.FromGuid(jsGuid);
                     String jsName = dev != null ? dev.UnitName : "[Missing Joystick] ";
-                    return jsName + " button " + jsButton;
+                    return jsName + " button " + (jsButton + 1);
                 }
                 else
                 {
