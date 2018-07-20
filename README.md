@@ -27,7 +27,9 @@ that are useful in a pin cab environment:
   from one table to the next.  Once you've set the levels for the
   tables you play, you won't have to keep making adjustments every
   time you switch games, since your preferred level for each table
-  is automatically restored when the table starts.
+  is automatically restored when the table starts.  A separately
+  adjustable Default Volume level is used for tables that don't 
+  have their own PinVol settings yet.
 
 - A separate master volume level: PinVol has separate "Global" and
   "Table" volume levels.  The individual table volume levels
@@ -50,3 +52,8 @@ that are useful in a pin cab environment:
   can control the volume level on both at the same time with the
   one set of buttons.  You can choose which sound cards are
   included in the volume controls.
+
+- PinballY integration: PinballY sends PinVol information on the
+  title of each game it launches, which lets PinVol display the
+  friendly game title instead of just the filename.
+

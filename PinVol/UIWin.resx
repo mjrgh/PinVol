@@ -126,10 +126,7 @@ can adjust the volume via the cabinet buttons during play.
 You can minimize this window if you wish, to get it out of the way while running other programs.</value>
   </data>
   <data name="label3.Text" xml:space="preserve">
-    <value>Table volume keys. These keys adjust the volume for the CURRENT table/program only. PinVol remembers the 
-individual level for each context, and switches back to the saved level each time you return to a table 
-or app.  The context volume is remembered as a percentage of the Global level, so changes to the global 
-level will be applied proportionally to all tables and apps.
+    <value>Table volume keys:  These keys adjust the volume for the CURRENT table/program only. PinVol remembers the individual level for each context, and switches back to the saved level each time you return to a table or app.  The context volume is remembered as a percentage of the Global level, so changes to the global level will be applied proportionally to all tables and apps.
 </value>
   </data>
   <metadata name="KeyMenu.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
@@ -183,9 +180,6 @@ volume for secondary devices.</value>
   </metadata>
   <metadata name="joystickRescanTimer.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
     <value>377, 17</value>
-  </metadata>
-  <metadata name="tipVersion.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
-    <value>538, 17</value>
   </metadata>
   <metadata name="configToolCheckTimer.TrayLocation" type="System.Drawing.Point, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a">
     <value>645, 17</value>

@@ -63,13 +63,26 @@ namespace PinVol
                             continue;
                         
                         // check for the volume level line
-                        Match m = Regex.Match(lines[lineno], @"(?i)^\s*(global|night)\s*=\s*(\d+)\s*#?");
+                        Match m = Regex.Match(lines[lineno], @"(?i)^\s*(global|night|default)\s*=\s*(\d+)\s*#?");
                         if (m.Success)
                         {
                             // parse out the groups and store the day/night global volume level
                             String type = m.Groups[1].Value.ToLower();;
-                            int val = int.Parse(m.Groups[2].Value);
-                            globalVolume[type == "global" ? 0 : 1] = LimitVolume(val/100.0f);
+                            float val = LimitVolume(int.Parse(m.Groups[2].Value)/100.0f);
+                            switch (type)
+                            {
+                                case "global":
+                                    globalVolume[0] = val;
+                                    break;
+
+                                case "night":
+                                    globalVolume[1] = val;
+                                    break;
+
+                                case "default":
+                                    defaultVolume = val;
+                                    break;
+                            }
 
                             // handled
                             continue;
@@ -175,7 +188,8 @@ namespace PinVol
                     "# PinVol volume levels",
                     "# Saved " + DateTime.Now.ToString(),
                     "Global = " + Math.Round(globalVolume[0]*100),
-                    "Night = " + Math.Round(globalVolume[1]*100)
+                    "Night = " + Math.Round(globalVolume[1]*100),
+                    "Default = " + Math.Round(defaultVolume*100)
                 });
             }
             catch (Exception exc)
@@ -212,7 +226,7 @@ namespace PinVol
             }
         }
 
-        // Save the current local volumes
+        // Save the current global volume levels
         void SetGlobalVol(float vol)
         {
             vol = LimitVolume(vol);
@@ -285,6 +299,7 @@ namespace PinVol
         // can differ enough in the balance between the two types of effects
         // that it can be useful to control them separately.
         public float[] globalVolume = new float[2];
+        public float defaultVolume = .66f;
         public bool globalMute = false;
         public float localVolume = 0.0f;
         public float local2Volume = 0.0f;
@@ -781,7 +796,7 @@ namespace PinVol
 
             // set invalid initial global volume levels, so that we can detect if
             // we fail to load saved volume levels
-            globalVolume[0] = globalVolume[1] = -1.0f;
+            globalVolume[0] = globalVolume[1] = defaultVolume = -1.0f;
 
             // Load the saved global volume level and local volume database.  This
             // will replace the defaults we just set (based on the current device
@@ -814,9 +829,16 @@ namespace PinVol
                 // level by default.
                 globalVolume[1] = LimitVolume(globalVolume[0] / 2);
             }
-            
+            if (defaultVolume < 0)
+                defaultVolume = 0.66f;
+           
             // update the volume controls to match
             UpdateVolume(OSDWin.OSDType.None);
+
+            // update the default volume control
+            int nominalDefaultVolume = (int)Math.Round(defaultVolume * 100.0f);
+            lblDefaultVol.Text = nominalDefaultVolume + "%";
+            trkDefaultVol.Value = nominalDefaultVolume;
 
             // wire the UI controls for the keys to the config elements and hotkeys
             globalUpKey = new KeyField(this, "Global Volume Up", cfg.keys["globalVolUp"], txtGlobalUp,  true,
@@ -1153,7 +1175,7 @@ namespace PinVol
                         vol *= lcl;
                     }
 
-                    // update the volume in the endpoing
+                    // update the volume in the endpoint
                     ad.epvol.SetMasterVolumeLevelScalar(LimitVolume(vol), ref OurEventGuid);
                     ad.epvol.SetMute(globalMute, ref OurEventGuid);
                 }
@@ -1172,6 +1194,33 @@ namespace PinVol
             // show and/or refresh the OSD window
             ShowOSD(osdType, osdHotkeyTime);
         }
+
+        [DllImport("User32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        internal extern static bool ShowWindow(IntPtr hWnd, int nCmdShow);
+        const int SW_SHOW_NO_ACTIVATE = 4;
+
+        [DllImport("User32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        internal extern static bool SetWindowPos(IntPtr hWnd, IntPtr hwndInsertAfter, int X, int Y, int cx, int cy, UInt32 flags);
+        static IntPtr HWND_BOTTOM = new IntPtr(1);
+        static IntPtr HWND_NOTOPOST = new IntPtr(-2);
+        static IntPtr HWND_TOP = new IntPtr(0);
+        static IntPtr HWND_TOPMOST = new IntPtr(-1);
+        const UInt32 SWP_ASYNCWINDOWPOS = 0x4000;
+        const UInt32 SWP_DEFERERASE = 0x2000;
+        const UInt32 SWP_DRAWFRAME = 0x0020;
+        const UInt32 SWP_FRAMECHANGED = 0x0020;
+        const UInt32 SWP_HIDEWINDOW = 0x0080;
+        const UInt32 SWP_NOACTIVATE = 0x0010;
+        const UInt32 SWP_NOCOPYBITS = 0x0100;
+        const UInt32 SWP_NOMOVE = 0x0002;
+        const UInt32 SWP_NOOWNERZORDER = 0x0200;
+        const UInt32 SWP_NOREDRAW = 0x0008;
+        const UInt32 SWP_NOREPOSITION = 0x0200;
+        const UInt32 SWP_NOSENDCHANGING = 0x0400;
+        const UInt32 SWP_NOSIZE = 0x0001;
+        const UInt32 SWP_NOZORDER = 0x0004;
+        const UInt32 SWP_SWHOWINDOW = 0x0040;
+
 
         private void ShowOSD(OSDWin.OSDType newOsdType, int timeInMs)
         {
@@ -1198,12 +1247,22 @@ namespace PinVol
                 // If desired, show it and start/restart the timer
                 if (newOsdType != OSDWin.OSDType.None && !osdwin.InSetup())
                 {
+                    ShowWindow(osdwin.Handle, SW_SHOW_NO_ACTIVATE);
+                    SetWindowPos(osdwin.Handle, HWND_TOPMOST, -1, -1, -1, -1, SWP_NOMOVE | SWP_NOSIZE | SWP_NOOWNERZORDER | SWP_NOACTIVATE);
                     osdwin.Opacity = 1.0f;
-                    osdwin.Visible = true;
+
                     SetTimer(ref osdOffTime, timeInMs);
                     updateTimer.Enabled = true;
                 }
             }
+        }
+
+
+        private void trkDefaultVol_Scroll(object sender, EventArgs e)
+        {
+            lblDefaultVol.Text = trkDefaultVol.Value + "%";
+            defaultVolume = trkDefaultVol.Value / 100.0f;
+            SetGlobalVolDirty();
         }
 
         private void trkGlobalVol_Scroll(object sender, EventArgs e)
@@ -1385,7 +1444,7 @@ namespace PinVol
         private void UIWin_FormClosed(object sender, FormClosedEventArgs e)
         {
             // close out the configuration if we have unsaved changes
-            if (cfgDirty)
+            if (cfgDirty && cfg != null)
             {
                 cfgDirty = false;
                 cfg.Save();
@@ -1420,14 +1479,14 @@ namespace PinVol
             UsbNotification.Unregister();
 
             // clean up our keys
-            globalUpKey.Cleanup();
-            globalDownKey.Cleanup();
-            globalMuteKey.Cleanup();
-            localUpKey.Cleanup();
-            localDownKey.Cleanup();
-            local2UpKey.Cleanup();
-            local2DownKey.Cleanup();
-            nightModeKey.Cleanup();
+            if (globalUpKey != null) globalUpKey.Cleanup();
+            if (globalDownKey != null) globalDownKey.Cleanup();
+            if (globalMuteKey != null) globalMuteKey.Cleanup();
+            if (localUpKey != null) localUpKey.Cleanup();
+            if (localDownKey != null) localDownKey.Cleanup();
+            if (local2UpKey != null) local2UpKey.Cleanup();
+            if (local2DownKey != null) local2DownKey.Cleanup();
+            if (nightModeKey != null) nightModeKey.Cleanup();
         }
 
         private void btnHideSettings_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
@@ -1574,13 +1633,14 @@ namespace PinVol
                 // remember the new app
                 curApp = appmon.App;
 
-                // If there's a saved level for this app, apply it.  Otherwise
-                // just carry forward the current local setting.
+                // If there's a saved level for this app, apply it.  Otherwise, set
+                // the default local volume.
                 if (appVol.ContainsKey(appmon.App))
-                {
                     SetLocalVol(appVol[appmon.App]);
-                    UpdateVolume(OSDWin.OSDType.None);
-                }
+                else
+                    SetLocalVol(defaultVolume, defaultVolume);
+
+                UpdateVolume(OSDWin.OSDType.None);
 
                 // if desired, bring up the OSD
                 if (cfg.OSDOnAppSwitch)

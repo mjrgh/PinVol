@@ -98,6 +98,13 @@ namespace PinVol
         int GetState(out DeviceState state);
     }
 
+    [Guid("1BE09788-6894-4089-8586-9A2A6C265AC5"),
+    InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IMMEndpoint
+    {
+        int GetDataFlow(out EDataFlow dataFlow);
+    }
+
     /// <summary>
     /// IMMNotificationClient
     /// </summary>
@@ -208,6 +215,14 @@ namespace PinVol
     {
         public static PropertyKey FriendlyName = new PropertyKey(
             new Guid("{A45C254E-DF1C-4EFD-8020-67D146A850E0}"), 14);
+    }
+
+    public class EndpointProperties
+    {
+        public static PropertyKey PhysicalSpeakers = new PropertyKey(
+            new Guid("{1DA5D803-D492-4EDD-8C23-E0C0FFEE7F0E}"), 3);
+        public static PropertyKey FullRangeSpeakers = new PropertyKey(
+            new Guid("{1DA5D803-D492-4EDD-8C23-E0C0FFEE7F0E}"), 6);
     }
     
     [Flags]

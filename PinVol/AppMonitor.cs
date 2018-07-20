@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Windows.Threading;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.IO;
 
 namespace PinVol
 {
@@ -13,12 +14,18 @@ namespace PinVol
         {
         }
 
+        // current foreground application name
         public String App {
             get { return app; }
             private set { app = value; }
         }
         String app;
-        IntPtr fgwin;
+
+        // current foreground HWND
+        IntPtr fgwin = IntPtr.Zero;
+        
+        // current foreground process ID
+        int fgpid = 0;
 
         public const String GlobalContextName = "System";
 
@@ -28,7 +35,9 @@ namespace PinVol
                 if (app == null)
                     return "None";
                 else if (app.StartsWith("VP."))
-                    return app.Substring(3);
+                    return Program.mailslotThread.GetGameTitle(app.Substring(3));
+                else if (app.StartsWith("FP."))
+                    return Program.mailslotThread.GetGameTitle(app.Substring(3));
                 else
                     return app;
             }
@@ -41,65 +50,82 @@ namespace PinVol
             // assume no change
             String app = App;
             
-            // check for a change in the foreground window
+            // Check for a change in the foreground process.  Also check for a change
+            // in window title if the last app was identified as "global".  The global
+            // context is a catch-all for windows we can't otherwise identify, so it's
+            // possible that it actually is one of our specially identifiable programs,
+            // and it just hasn't opened the window by which we can identify it yet,
+            // or hasn't set the window title to the recognizable pattern yet.
             IntPtr curwin = GetForegroundWindow();
-            if (curwin != fgwin)
+            int pid, tid = GetWindowThreadProcessId(curwin, out pid);
+            if (pid != fgpid || app == GlobalContextName)
             {
-                // check what's running based on the window name
-                int n = 256;
-                StringBuilder buf = new StringBuilder(n);
-                if (GetWindowText(curwin, buf, n) > 0)
+                // switch to the global context, on the assumption that we won't find
+                // a window we recognize
+                app = GlobalContextName;
+
+                // Check what's running based on the window name.  Scan all of the windows
+                // associated with this thread, since the one that we use to identify the
+                // application might not be the application's current active window.
+                EnumThreadWindows(tid, (IntPtr hwnd, IntPtr lparam) =>
                 {
-                    // get the process and thread ID for the window
-                    int pid, tid = GetWindowThreadProcessId(curwin, out pid);
-
-                    // see what we have for the title
-                    String title = buf.ToString();
-                    if (title == "Visual Pinball Player")
+                    // get the window caption
+                    int n = 256;
+                    StringBuilder buf = new StringBuilder(n);
+                    if (GetWindowText(hwnd, buf, n) > 0)
                     {
-                        // The VP player is running.  This window doesn't identify the
-                        // running game in its title, but the design window does; it'll
-                        // be running in the background in the same thread.  Search for
-                        // the designer window and pull the game name out of that.
-                        EnumThreadWindows(tid, (IntPtr hwnd, IntPtr lparam) =>
+                        // look for captions matching the pinball player and front end apps
+                        String title = buf.ToString();
+                        Match m;
+                        if ((m = Regex.Match(title, @"^Visual Pinball - \[?(.*?)[\]*]*$")).Success)
                         {
-                            // check the title of this window
-                            if (GetWindowText(hwnd, buf, n) > 0)
-                            {
-                                Match m = Regex.Match(buf.ToString(), @"^Visual Pinball - \[?(.*?)[\]*]*$");
-                                if (m.Success)
-                                {
-                                    // it's the one we're looking for - note it and stop looking
-                                    app = "VP." + m.Groups[1].Value;
-                                    return false;
-                                }
-                            }
+                            // it's a Visual Pinball window
+                            app = "VP." + m.Groups[1].Value;
 
-                            // no match - keep looking
-                            return true;
+                            // we've found a suitable window - stop the enumeration
+                            return false;
+                        }
+                        else if ((m = Regex.Match(title, @"^Future Pinball - \[[^(]*\(\s*(.*)\)\]$")).Success)
+                        {
+                            // it's a Future Pinball window
+                            app = "FP." + Path.GetFileNameWithoutExtension(m.Groups[1].Value);
+                            return false;
+                        }
+                        else if (title == "PinballX")
+                        {
+                            // The PinballX front end is running
+                            app = "PinballX";
 
-                        }, IntPtr.Zero);
+                            // remember this process ID as PinballX, so that we can recognize
+                            // other windows from this process even if they have different names
+                            pbxPid = pid;
+                            return false;
+                        }
+                        else if (pid == pbxPid)
+                        {
+                            // the window is part of the PinballX process
+                            app = "PinballX";
+                            return false;
+                        }
+                        else if (title == "PinballY" || title.StartsWith("PinballY -"))
+                        {
+                            // the PinballY front end is running
+                            app = "PinballY";
+                            pbyPid = pid;
+                            return false;
+                        }
+                        else if (pid == pbyPid)
+                        {
+                            // the window is part of the PinballY process
+                            app = "PinballY";
+                            return false;
+                        }
                     }
-                    else if (title == "PinballX")
-                    {
-                        // The PinballX front end is running
-                        app = title;
 
-                        // remember this process ID as PinballX, so that we can recognize
-                        // other windows from this process even if they have different names
-                        pbxPid = pid;
-                    }
-                    else if (pid == pbxPid)
-                    {
-                        // the window is part of the PinballX process
-                        app = "PinballX";
-                    }
-                    else
-                    {
-                        // Nothing we recognize.  Use the global context.
-                        app = GlobalContextName;
-                    }
-                }
+                    // we didn't identify this window - continue the enumeration
+                    return true;
+
+                }, IntPtr.Zero);
             }
 
             // check for a change in the application
@@ -107,6 +133,7 @@ namespace PinVol
             {
                 App = app;
                 fgwin = curwin;
+                fgpid = pid;
                 return true;
             }
 
@@ -116,6 +143,9 @@ namespace PinVol
 
         // PinballX process ID, if known
         int pbxPid = -1;
+
+        // PinballY process ID, if known
+        int pbyPid = -1;
         
         // Win32 imports
 

@@ -38,6 +38,11 @@ namespace PinVol
         // the main window (source of the current volume level)
         UIWin mainwin;
 
+        // show without activation
+        protected override bool ShowWithoutActivation { 
+            get { return true; } 
+        }
+
         // setup mode
         bool setupMode = false;
         Color origTransparencyKey;

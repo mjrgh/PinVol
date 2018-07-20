@@ -95,7 +95,6 @@
             this.ShowInTaskbar = false;
             this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
             this.Text = "Volume";
-            this.TopMost = true;
             this.TransparencyKey = System.Drawing.Color.FromArgb(((int)(((byte)(222)))), ((int)(((byte)(222)))), ((int)(((byte)(222)))));
             this.Load += new System.EventHandler(this.OSDWin_Load);
             this.Paint += new System.Windows.Forms.PaintEventHandler(this.VolumeOverlay_Paint);

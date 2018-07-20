@@ -79,6 +79,7 @@
     <Compile Include="Log.cs" />
     <Compile Include="KeyboardHook.cs" />
     <Compile Include="Config.cs" />
+    <Compile Include="Mailslot.cs" />
     <Compile Include="PinscapeDev.cs" />
     <Compile Include="UIWin.cs">
       <SubType>Form</SubType>
