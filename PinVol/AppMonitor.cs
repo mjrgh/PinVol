@@ -85,13 +85,13 @@ namespace PinVol
                             // we've found a suitable window - stop the enumeration
                             return false;
                         }
-                        else if ((m = Regex.Match(title, @"^Future Pinball - \[[^(]*\(\s*(.*)\)\]$")).Success)
+                        if ((m = Regex.Match(title, @"^Future Pinball - \[[^(]*\(\s*(.*)\)\]$")).Success)
                         {
                             // it's a Future Pinball window
                             app = "FP." + Path.GetFileNameWithoutExtension(m.Groups[1].Value);
                             return false;
                         }
-                        else if (title == "PinballX")
+                        if (title == "PinballX")
                         {
                             // The PinballX front end is running
                             app = "PinballX";
@@ -101,20 +101,25 @@ namespace PinVol
                             pbxPid = pid;
                             return false;
                         }
-                        else if (pid == pbxPid)
+                        if (pid == pbxPid)
                         {
                             // the window is part of the PinballX process
                             app = "PinballX";
                             return false;
                         }
-                        else if (title == "PinballY" || title.StartsWith("PinballY -"))
+                        if (title == "PinballY" || title.StartsWith("PinballY -"))
                         {
-                            // the PinballY front end is running
-                            app = "PinballY";
-                            pbyPid = pid;
-                            return false;
+                            // check the class name
+                            String wc = GetWindowClassName(hwnd);
+                            if (wc != null && wc.StartsWith("PinballY."))
+                            {
+                                // the PinballY front end is running
+                                app = "PinballY";
+                                pbyPid = pid;
+                                return false;
+                            }
                         }
-                        else if (pid == pbyPid)
+                        if (pid == pbyPid)
                         {
                             // the window is part of the PinballY process
                             app = "PinballY";
@@ -161,5 +166,23 @@ namespace PinVol
 
         [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         static extern int GetWindowThreadProcessId(IntPtr handle, out int processId);
+    
+        [DllImport("User32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        static extern int GetClassName(IntPtr hwnd, StringBuilder lpClassName, int nMaxCount);
+
+        static String GetWindowClassName(IntPtr hwnd)
+        {
+            try
+            {
+                int maxLen = 1000;
+                StringBuilder s = new StringBuilder(null, maxLen + 3);
+                GetClassName(hwnd, s, maxLen);
+                return s.ToString();
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
     }
 }

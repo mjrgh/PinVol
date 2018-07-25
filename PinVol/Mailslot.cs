@@ -122,21 +122,23 @@ namespace PinVol
 
         public string GetNextMessage()
         {
-            int messageBytes;
+            const int maxMessageBytes = 4096;
             int bytesRead;
-            int messages;
 
-            if (!Mailslot.GetMailslotInfo(_handle, IntPtr.Zero, out messageBytes,
-                         out messages, IntPtr.Zero)) throw new Win32Exception();
+            // For non-blocking read, get message info first, and return null
+            // if no message is available.  For our purposes, we want to block
+            // until a message is available.
+            //
+            //if (!Mailslot.GetMailslotInfo(_handle, IntPtr.Zero, out messageBytes,
+            //             out messages, IntPtr.Zero)) throw new Win32Exception();
+            //
+            //if (messageBytes == Mailslot.MailslotNoMessage) return null;
 
-            if (messageBytes == Mailslot.MailslotNoMessage) return null;
+            var bBuffer = new byte[maxMessageBytes];
+            if (!Mailslot.ReadFile(_handle, bBuffer, maxMessageBytes, out bytesRead, IntPtr.Zero) || bytesRead == 0)
+                throw new Win32Exception();
 
-            var bBuffer = new byte[messageBytes];
-
-            if (!Mailslot.ReadFile(_handle, bBuffer, messageBytes, out bytesRead,
-                 IntPtr.Zero) || bytesRead == 0) throw new Win32Exception();
-
-            return Encoding.Unicode.GetString(bBuffer);
+            return Encoding.Unicode.GetString(bBuffer, 0, bytesRead);
         }
 
         public void Dispose()
