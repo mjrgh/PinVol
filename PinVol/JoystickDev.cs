@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using SharpDX;
 using SharpDX.DirectInput;
 using System.Windows.Forms;
+using System.Diagnostics;
 
 namespace PinVol
 {
@@ -90,7 +91,7 @@ namespace PinVol
         public static void Rescan()
         {
             // get the list of attached joysticks
-            var devices = directInput.GetDevices(DeviceType.Joystick, DeviceEnumerationFlags.AttachedOnly);
+            var devices = directInput.GetDevices(DeviceType.Joystick, DeviceEnumerationFlags.AllDevices);
             int unitNo = joysticks.Count + 1;
             foreach (var dev in devices)
             {
@@ -230,7 +231,7 @@ namespace PinVol
             while (true)
             {
                 // Figure the next timeout time.  If any buttons are down, we'll
-                // time out at the earliest auto-repeat tie.  Otherwise we'll
+                // time out at the earliest auto-repeat time.  Otherwise we'll
                 // wait indefinitely.
                 DateTime endTime = buttons.Min(b => b.down ? b.repeat : DateTime.MaxValue);
                 DateTime now = DateTime.Now;

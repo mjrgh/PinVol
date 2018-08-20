@@ -69,6 +69,33 @@ namespace PinVol
                 // application might not be the application's current active window.
                 EnumThreadWindows(tid, (IntPtr hwnd, IntPtr lparam) =>
                 {
+                    // we'll inspect the process name in some cases; cache it if we get if
+                    // for this window so that we don't have to get it more than once
+                    String processName = null;
+                    Func<String> GetProcessName = delegate()
+                    {
+                        // if we haven't already retrieved the process name, do so now
+                        if (processName == null)
+                        {
+                            // open the process for limited information query
+                            IntPtr hProc = OpenProcess(ProcessQueryLimitedInformation, false, pid);
+                            if (hProc != IntPtr.Zero)
+                            {
+                                // get the image name
+                                int procNameBufMax = 256;
+                                StringBuilder procNameBuf = new StringBuilder(procNameBufMax);
+                                if (GetProcessImageFileNameW(hProc, procNameBuf, procNameBufMax) != 0)
+                                {
+                                    // got it - save it for next time
+                                    processName = Path.GetFileName(procNameBuf.ToString()).ToLower();
+                                }
+                            }
+                        }
+
+                        // return the cacched information
+                        return processName;
+                    };
+
                     // get the window caption
                     int n = 256;
                     StringBuilder buf = new StringBuilder(n);
@@ -91,6 +118,7 @@ namespace PinVol
                             app = "FP." + Path.GetFileNameWithoutExtension(m.Groups[1].Value);
                             return false;
                         }
+
                         if (title == "PinballX")
                         {
                             // The PinballX front end is running
@@ -107,22 +135,44 @@ namespace PinVol
                             app = "PinballX";
                             return false;
                         }
+
                         if (title == "PinballY" || title.StartsWith("PinballY -"))
                         {
-                            // check the class name
-                            String wc = GetWindowClassName(hwnd);
-                            if (wc != null && wc.StartsWith("PinballY."))
+                            if (GetProcessName() == "pinbally.exe")
                             {
-                                // the PinballY front end is running
-                                app = "PinballY";
-                                pbyPid = pid;
-                                return false;
+                                // check the class name
+                                String wc = GetWindowClassName(hwnd);
+                                if (wc != null && wc.StartsWith("PinballY."))
+                                {
+                                    // the PinballY front end is running
+                                    app = "PinballY";
+                                    pbyPid = pid;
+                                    return false;
+                                }
                             }
                         }
                         if (pid == pbyPid)
                         {
                             // the window is part of the PinballY process
                             app = "PinballY";
+                            return false;
+                        }
+
+                        if (title == "PinUP Menu Player")
+                        {
+                            app = "PinUP Popper";
+                            pupPid = pid;
+                            return false;
+                        }
+                        if (pid == pupPid)
+                        {
+                            app = "PinUP Popper";
+                            return false;
+                        }
+
+                        if (title == "Pinball FX3" && GetProcessName() == "pinball fx3.exe")
+                        {
+                            app = "Pinball FX3";
                             return false;
                         }
                     }
@@ -151,6 +201,9 @@ namespace PinVol
 
         // PinballY process ID, if known
         int pbyPid = -1;
+
+        // PinUP Popper process ID, if known
+        int pupPid = -1;
         
         // Win32 imports
 
@@ -169,6 +222,35 @@ namespace PinVol
     
         [DllImport("User32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         static extern int GetClassName(IntPtr hwnd, StringBuilder lpClassName, int nMaxCount);
+
+        [DllImport("Kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        static extern IntPtr OpenProcess(int dwDesiredAccess, bool bInheritHandle, int dwProcessId);
+
+        // process access rights
+        const int AccessDelete = 0x00010000;
+        const int AccessReadControl = 0x00020000;
+        const int AccessSynchronize = 0x00100000;
+        const int AccessWriteDac = 0x00040000;
+        const int AccessWriteOnwer = 0x00080000;
+        const int ProcessAllAccess = -1;
+        const int ProcessCreateProcess = 0x0080;
+        const int ProcessCreateThread = 0x0002;
+        const int ProcessDupHandle = 0x0040;
+        const int ProcessQueryInformation = 0x0400;
+        const int ProcessQueryLimitedInformation = 0x1000;
+        const int ProcessSetInformation = 0x0200;
+        const int ProcessSetQuota = 0x0100;
+        const int ProcessSuspendResume = 0x0800;
+        const int ProcessTerminate = 0x0001;
+        const int ProcessVMOperation = 0x0008;
+        const int ProcessVMRead = 0x0010;
+        const int ProcessVMWrite = 0x0020;
+
+        [DllImport("Kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        static extern bool CloseHandle(IntPtr hObject);
+
+        [DllImport("Psapi.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        static extern int GetProcessImageFileNameW(IntPtr hProc, StringBuilder lpImageFileName, int nSize);
 
         static String GetWindowClassName(IntPtr hwnd)
         {
