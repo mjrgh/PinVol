@@ -91,7 +91,7 @@ namespace PinVol
         public static void Rescan()
         {
             // get the list of attached joysticks
-            var devices = directInput.GetDevices(DeviceType.Joystick, DeviceEnumerationFlags.AllDevices);
+            var devices = directInput.GetDevices(DeviceType.Joystick, DeviceEnumerationFlags.AttachedOnly);
             int unitNo = joysticks.Count + 1;
             foreach (var dev in devices)
             {
