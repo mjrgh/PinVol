@@ -91,33 +91,61 @@ namespace PinVol
         public static void Rescan()
         {
             // get the list of attached joysticks
-            var devices = directInput.GetDevices(DeviceType.Joystick, DeviceEnumerationFlags.AttachedOnly);
+            var devices = directInput.GetDevices(DeviceClass.All, DeviceEnumerationFlags.AttachedOnly);
             int unitNo = joysticks.Count + 1;
+            Log.Info("Scanning for USB devices");
             foreach (var dev in devices)
             {
                 // if this device is already in our list, there's nothing to do
                 if (joysticks.ContainsKey(dev.InstanceGuid))
                     continue;
-                
-                // create the instance and add it to our list
-                Joystick js = new Joystick(directInput, dev.InstanceGuid);
-                JoystickDev jsdev = new JoystickDev(unitNo++, js, dev.InstanceGuid);
-                joysticks[dev.InstanceGuid] = jsdev;
 
-                // request non-exclusive background access
-                js.SetCooperativeLevel(win.Handle, CooperativeLevel.NonExclusive | CooperativeLevel.Background);
+                // check USB usage to see if it's a joystick
+                bool isJoystick = (dev.UsagePage == SharpDX.Multimedia.UsagePage.Generic 
+                    && dev.Usage == SharpDX.Multimedia.UsageId.GenericJoystick);
 
-                // Set up an input monitor thread for the joystick.  Note that the
-                // DX API requires this to be done before we call 'Acquire'.
-                js.SetNotification(jsdev.hWait);
+                // check if it's a gamepad
+                bool isGamepad = (dev.UsagePage == SharpDX.Multimedia.UsagePage.Generic
+                    && dev.Usage == SharpDX.Multimedia.UsageId.GenericGamepad);
 
-                // connect to the joystick
-                js.Acquire();
+                // log it
+                String productName = dev.ProductName.TrimEnd('\0');
+                Log.Info((isJoystick ? "  Found joystick: " : isGamepad ? "  Found gamepad: " : "  Found non-joystick device: ")
+                    + productName 
+                    + ", DirectInput type=" + dev.Type + "/" + dev.Subtype
+                    + ", USB usage=" + (int)dev.UsagePage + "." + (int)dev.Usage);
 
-                // Start the monitor thread.  Note that we have to do this after
-                // calling 'Acquire', since the thread will want to read state.
-                jsdev.thread = new Thread(jsdev.JoystickThreadMain);
-                jsdev.thread.Start();
+                // skip devices that aren't joysticks or gamepads
+                if (!isJoystick && !isGamepad)
+                    continue;
+
+                // initialize it
+                try
+                {
+                    // create the instance and add it to our list
+                    Joystick js = new Joystick(directInput, dev.InstanceGuid);
+                    JoystickDev jsdev = new JoystickDev(unitNo++, js, dev.InstanceGuid);
+                    joysticks[dev.InstanceGuid] = jsdev;
+
+                    // request non-exclusive background access
+                    js.SetCooperativeLevel(win.Handle, CooperativeLevel.NonExclusive | CooperativeLevel.Background);
+
+                    // Set up an input monitor thread for the joystick.  Note that the
+                    // DX API requires this to be done before we call 'Acquire'.
+                    js.SetNotification(jsdev.hWait);
+
+                    // connect to the joystick
+                    js.Acquire();
+
+                    // Start the monitor thread.  Note that we have to do this after
+                    // calling 'Acquire', since the thread will want to read state.
+                    jsdev.thread = new Thread(jsdev.JoystickThreadMain);
+                    jsdev.thread.Start();
+                }
+                catch (Exception ex)
+                {
+                    Log.Error("  !!! Error initializing joystick device " + productName + ": " + ex.Message);
+                }
             }
         }
 
