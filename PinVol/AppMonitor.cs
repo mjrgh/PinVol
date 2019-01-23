@@ -175,6 +175,12 @@ namespace PinVol
                             app = "Pinball FX3";
                             return false;
                         }
+
+                        if (title == "DEMON'S TILT" && GetProcessName() == "demon's tilt.exe")
+                        {
+                            app = "Demon's Tilt";
+                            return false;
+                        }
                     }
 
                     // we didn't identify this window - continue the enumeration
