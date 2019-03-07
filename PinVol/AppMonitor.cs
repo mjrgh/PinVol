@@ -21,6 +21,20 @@ namespace PinVol
         }
         String app;
 
+        // current foreground application type
+        public enum AppType
+        {
+            System,  // any unknown app type
+            VP,
+            FP,
+            PinballX,
+            PinballY,
+            Other    // other known app types not included above
+        };
+        AppType appType = AppType.System;
+
+        public AppType GetAppType() { return appType; }
+
         // current foreground HWND
         IntPtr fgwin = IntPtr.Zero;
         
@@ -34,10 +48,12 @@ namespace PinVol
             {
                 if (app == null)
                     return "None";
-                else if (app.StartsWith("VP."))
+                else if (appType == AppType.VP)
+                    return app == "VP" ? "Visual Pinball" : Program.mailslotThread.GetGameTitle(app.Substring(3));
+                else if (appType == AppType.FP)
                     return Program.mailslotThread.GetGameTitle(app.Substring(3));
-                else if (app.StartsWith("FP."))
-                    return Program.mailslotThread.GetGameTitle(app.Substring(3));
+                else if (appType == AppType.PinballY)
+                    return app == "PinballY" ? "PinballY" : Program.mailslotThread.GetPBYTitle(app.Substring(9));
                 else
                     return app;
             }
@@ -49,7 +65,8 @@ namespace PinVol
         {
             // assume no change
             String app = App;
-            
+            AppType appType = this.appType;
+
             // Check for a change in the foreground process.  Also check for a change
             // in window title if the last app was identified as "global".  The global
             // context is a catch-all for windows we can't otherwise identify, so it's
@@ -58,11 +75,15 @@ namespace PinVol
             // or hasn't set the window title to the recognizable pattern yet.
             IntPtr curwin = GetForegroundWindow();
             int pid, tid = GetWindowThreadProcessId(curwin, out pid);
-            if (pid != fgpid || app == GlobalContextName)
+            if (pid != fgpid 
+                || app == GlobalContextName 
+                || app == "VP"
+                || (appType == AppType.PinballY && Program.mailslotThread.IsPBYSelectionChanged()))
             {
                 // switch to the global context, on the assumption that we won't find
                 // a window we recognize
                 app = GlobalContextName;
+                appType = AppType.System;
 
                 // Check what's running based on the window name.  Scan all of the windows
                 // associated with this thread, since the one that we use to identify the
@@ -108,6 +129,7 @@ namespace PinVol
                         {
                             // it's a Visual Pinball window
                             app = "VP." + m.Groups[1].Value;
+                            appType = AppType.VP;
 
                             // we've found a suitable window - stop the enumeration
                             return false;
@@ -116,6 +138,7 @@ namespace PinVol
                         {
                             // it's a Future Pinball window
                             app = "FP." + Path.GetFileNameWithoutExtension(m.Groups[1].Value);
+                            appType = AppType.FP;
                             return false;
                         }
 
@@ -123,6 +146,7 @@ namespace PinVol
                         {
                             // The PinballX front end is running
                             app = "PinballX";
+                            appType = AppType.PinballX;
 
                             // remember this process ID as PinballX, so that we can recognize
                             // other windows from this process even if they have different names
@@ -133,6 +157,7 @@ namespace PinVol
                         {
                             // the window is part of the PinballX process
                             app = "PinballX";
+                            appType = AppType.PinballX;
                             return false;
                         }
 
@@ -145,7 +170,9 @@ namespace PinVol
                                 if (wc != null && wc.StartsWith("PinballY."))
                                 {
                                     // the PinballY front end is running
-                                    app = "PinballY";
+                                    String id = Program.mailslotThread.GetPBYSelection();
+                                    app = id == "" ? "PinballY" : "PinballY." + id;
+                                    appType = AppType.PinballY;
                                     pbyPid = pid;
                                     return false;
                                 }
@@ -154,31 +181,37 @@ namespace PinVol
                         if (pid == pbyPid)
                         {
                             // the window is part of the PinballY process
-                            app = "PinballY";
+                            String id = Program.mailslotThread.GetPBYSelection();
+                            app = id == "" ? "PinballY" : "PinballY." + id;
+                            appType = AppType.PinballY;
                             return false;
                         }
 
                         if (title == "PinUP Menu Player")
                         {
                             app = "PinUP Popper";
+                            appType = AppType.Other;
                             pupPid = pid;
                             return false;
                         }
                         if (pid == pupPid)
                         {
                             app = "PinUP Popper";
+                            appType = AppType.Other;
                             return false;
                         }
 
                         if (title == "Pinball FX3" && GetProcessName() == "pinball fx3.exe")
                         {
                             app = "Pinball FX3";
+                            appType = AppType.Other;
                             return false;
                         }
 
                         if (title == "DEMON'S TILT" && GetProcessName() == "demon's tilt.exe")
                         {
                             app = "Demon's Tilt";
+                            appType = AppType.Other;
                             return false;
                         }
                     }
@@ -192,7 +225,24 @@ namespace PinVol
             // check for a change in the application
             if (app != App)
             {
+                // If we didn't identify the app more specifically than "System", check
+                // a special case.  When Visual Pinball first starts in /play mode, it
+                // opens a window titled just "Visual Pinball", with no document loaded.
+                if (appType == AppType.System && curwin != IntPtr.Zero)
+                {
+                    // get the window title
+                    int n = 256;
+                    StringBuilder buf = new StringBuilder(n);
+                    if (GetWindowText(curwin, buf, n) > 0 && buf.ToString() == "Visual Pinball")
+                    {
+                        appType = AppType.VP;
+                        app = "VP";
+                    }
+                }
+
+                // remember the new foreground application
                 App = app;
+                this.appType = appType;
                 fgwin = curwin;
                 fgpid = pid;
                 return true;

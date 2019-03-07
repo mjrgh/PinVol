@@ -79,6 +79,40 @@ namespace PinVol
                 }
             }
 
+            // Has the PinballY selection changed since the last time this was
+            // called?  If so, this returns true and clears the flag.
+            public bool IsPBYSelectionChanged()
+            {
+                lock (locker)
+                {
+                    bool changed = pbySelectionChanged;
+                    pbySelectionChanged = false;
+                    return changed;
+                }
+            }
+
+            // Get the current PinballY game name.  PinballY informs us via mailslot
+            // messages which game is selected in its UI, so that we can set different
+            // separate volume levels per game.
+            public String GetPBYSelection()
+            {
+                lock (locker)
+                    return pbySelectionId;
+            }
+
+            // Given a PinballY selection, get the associated game title
+            public String GetPBYTitle(String id)
+            {
+                lock (locker)
+                {
+                    // try looking up the ID in the table
+                    if (pbyNameMap.ContainsKey(id))
+                        return pbyNameMap[id];
+
+                    return id;
+                }
+            }
+
             // Shut down the server thread
             public void Shutdown()
             {
@@ -141,6 +175,24 @@ namespace PinVol
                                 gameNameMap[m.Groups[1].Value] = title;
                         }
                     }
+                    else if ((m = Regex.Match(msg, @"^PinballY Select (.*)\n(.*)$")).Success)
+                    {
+                        // PinballY wheel selection - store the new game selection
+                        lock (locker)
+                        {
+                            pbySelectionId = m.Groups[1].Value;
+                            pbyNameMap[pbySelectionId] = m.Groups[2].Value;
+                            pbySelectionChanged = true;
+                        }
+                    }
+                    else if (msg == "PinballY SelectNone")
+                    {
+                        lock (locker)
+                        {
+                            pbySelectionId = "";
+                            pbySelectionChanged = true;
+                        }
+                    }
                 }
             }
 
@@ -163,6 +215,15 @@ namespace PinVol
             // filename.  The filename keys are converted to lowercase for more liberal
             // matching.
             Dictionary<String, String> gameNameMap = new Dictionary<String, String>();
+
+            // Current PinballY game ID 
+            String pbySelectionId = "";
+
+            // PinballY game name table
+            Dictionary<String, String> pbyNameMap = new Dictionary<String, String>();
+
+            // Has the PBY selection changed since the last time it was checked?
+            bool pbySelectionChanged = false;
         }
 
         // mailbox thread singleton

@@ -29,7 +29,13 @@ namespace PinVol
             // set the default OSD window to the right side of the screen
             Rectangle rc = Screen.FromControl(win).Bounds;
             OSDPos = new Rectangle(rc.Width - 230, 50, 180, rc.Height - 125);
+
+            // set up the file path - <program folder>\PinVolSettings.ini
+            filename = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "PinVolSettings.ini");
         }
+
+        // config file name
+        String filename;
 
         // Miscellaneous configuration settings
         public bool ShowSettings = true;                // settings are visible
@@ -339,7 +345,6 @@ namespace PinVol
                 + dev.useLocal;
         }
 
-        String filename = "PinVolSettings.ini";
         public Dictionary<String, KeyInfo> keys = new Dictionary<String, KeyInfo>(StringComparer.InvariantCultureIgnoreCase);
 
         public class KeyInfo

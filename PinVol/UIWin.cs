@@ -1624,6 +1624,9 @@ namespace PinVol
 
         private void appCheckTimer_Tick(object sender, EventArgs e)
         {
+            // remember the old application type
+            var oldAppType = appmon.GetAppType();
+
             // check for changes in the foreground application
             if (appmon.CheckActiveApp())
             {
@@ -1642,8 +1645,9 @@ namespace PinVol
 
                 UpdateVolume(OSDWin.OSDType.None);
 
-                // if desired, bring up the OSD
-                if (cfg.OSDOnAppSwitch)
+                // If desired, bring up the OSD.  Skip this if the application type
+                // isn't changing - e.g., if we're switching between games in PinballY.
+                if (cfg.OSDOnAppSwitch && appmon.GetAppType() != oldAppType)
                     ShowOSD(osdType, osdAppSwitchTime);
             }
 
