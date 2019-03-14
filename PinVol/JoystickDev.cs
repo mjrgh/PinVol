@@ -23,6 +23,20 @@ namespace PinVol
             this.hWait = new EventWaitHandle(false, EventResetMode.AutoReset);
             this.productName = js.Information.ProductName.TrimEnd('\0');
             this.isPinscape = Regex.IsMatch(this.productName, @"Pinscape\s*Controller");
+
+            // try reading the state, to determine the size of the button state array
+            var state = new JoystickState();
+            try 
+            { 
+                js.GetCurrentState(ref state);
+                this.nButtonArray = state.Buttons.Length;
+            } 
+            catch 
+            {
+                // can't read the state; assume the max index is the same as
+                // the button count
+                this.nButtonArray = this.nButtons;
+            }
         }
 
         // our DirectInput instance
@@ -37,6 +51,7 @@ namespace PinVol
         public Guid instanceGuid;       // instance GUID of Windows HID
         public String productName;      // product name string from device
         public int nButtons;            // number of buttons
+        public int nButtonArray;        // number of buttons in button state array
         public WaitHandle hWait;        // event wait handle, for state change notifications
         public Thread thread;           // state monitor thread
         public bool isPinscape;         // is this a Pinscape controller?
@@ -229,9 +244,23 @@ namespace PinVol
         private static EventWaitHandle exitThreadsEvent = new EventWaitHandle(false, EventResetMode.ManualReset);
         private void JoystickThreadMain()
         {
-            // start with all buttons off
-            var buttons = new ButtonState[js.Capabilities.ButtonCount].Select(b => new ButtonState()).ToArray();
+            // get the current state
             var state = new JoystickState();
+            try
+            {
+                js.GetCurrentState(ref state);
+            }
+            catch
+            {
+                // An error occurred.  The joystick might have been unplugged.
+                // Tell the main loop to rebuild the joystick list, then exit
+                // the thread.
+                win.BeginInvoke((Action)delegate { win.OnJoystickError(this); });
+                return;
+            }
+
+            // start with all buttons off
+            var buttons = new ButtonState[state.Buttons.Length].Select(b => new ButtonState()).ToArray();
 
             // wait handles - we wait for a joystick state change or an exit signal
             var handles = new WaitHandle[] { hWait, exitThreadsEvent };

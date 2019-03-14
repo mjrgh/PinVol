@@ -209,7 +209,7 @@ namespace PinVol
                         continue;
 
                     // check for a key assignment or miscellaneous variable assignment
-                    Match m = Regex.Match(line, @"(?i)^\s*(\w+)\s*=\s*(.*)\s*#?");
+                    Match m = Regex.Match(line, @"(?i)^\s*(\w+)\s*=\s*(([^""]|""([^""]|"""")*(""|$))*)\s*#?");
                     if (m.Success)
                     {
                         // if it's a known key entry, parse the value
@@ -240,6 +240,8 @@ namespace PinVol
                                 EnableJoystick = bool.Parse(value);
                             else if (varname == "enablesecondary")
                                 EnableLocal2 = bool.Parse(value);
+                            else if (varname == "program")
+                                ParseProgram(value);
                             else
                                 Log.Error("Invalid key name in config file at line " + lineNum + ": " + m.Groups[1].Value);
                         }
@@ -263,6 +265,122 @@ namespace PinVol
                     + ": " + exc.Message);
             }
         }
+
+        protected void ParseProgram(String value)
+        {
+            ProgramInfo p = new ProgramInfo();
+            if (p.Parse(value))
+                programs.Add(p);
+        }
+
+        // program list
+        public class ProgramInfo
+        {
+            public String displayName = null;
+            public String appType = null;
+            public String windowTitle = null;
+            public Regex windowPattern = null;
+            public String exe = null;
+
+            public String ConfigText()
+            {
+                List<String> s = new List<String>();
+                if (windowTitle != null)
+                    s.Add("windowTitle:\"" + windowTitle.Replace("\"", "\"\"") + "\"");
+                if (windowPattern != null)
+                    s.Add("windowPattern:\"" + windowPattern.ToString().Replace("\"", "\"\"") + "\"");
+                if (exe != null)
+                    s.Add("exe:\"" + exe.Replace("\"", "\"\"") + "\"");
+
+                return String.Join(",", s);
+            }
+
+            public bool Parse(String s)
+            {
+                String sFull = s;
+                while (s != "")
+                {
+                    // parse this item - format is keyword:"value"; quotes are optional,
+                    // and quotes within quotes can be entered by stuttering
+                    Match m = Regex.Match(s, @"^\s*([a-zA-Z]+)\s*:\s*(([^,""]|""([^""]|"""")*(""|$))*)\s*(,|$)");
+                    if (m.Success)
+                    {
+                        // get the keyword and value, stripping quotes from the value
+                        String id = m.Groups[1].Value.ToLower();
+                        String val = Regex.Replace(m.Groups[2].Value, @"""([^""]|"""")*(""|$)", mm =>
+                        {
+                            return mm.Value.Substring(1, mm.Value.Length - 2).Replace("\"\"", "\"");
+                        });
+
+                        // assign the value to the appropriate property
+                        switch (id)
+                        {
+                            case "displayname":
+                                displayName = val;
+                                break;
+
+                            case "apptype":
+                                appType = val;
+                                break;
+
+                            case "exe":
+                                exe = val.ToLower();
+                                break;
+
+                            case "windowtitle":
+                                windowTitle = val;
+                                break;
+
+                            case "windowpattern":
+                                try
+                                {
+                                    windowPattern = new Regex(val);
+                                }
+                                catch (Exception exc)
+                                {
+                                    Log.Error("Invalid regular expression for Program = windowPattern: " + val + " (error: " + exc.Message + ")");
+                                    return false;
+                                }
+                                break;
+
+                            default:
+                                Log.Error("Invalid keyword \"" + id + "\" in Program setting: " + sFull);
+                                return false;
+                        }
+
+                        // get the rest of the line
+                        s = s.Substring(m.Value.Length);
+                    }
+                    else
+                    {
+                        Log.Error("Invalid Program setting in configuration: " + sFull + " (bad section: " + s + ")");
+                        return false;
+                    }
+                }
+
+                // at least one of the match keys is required
+                if (exe == null && windowTitle == null && windowPattern == null)
+                {
+                    Log.Error("Program setting doesn't have any match critera (one of exe, windowTitle, windowPattern is required): " + sFull);
+                    return false;
+                }
+
+                // a display name is required
+                if (displayName == null)
+                {
+                    Log.Error("Program setting doesn't have the required displayName property: " + sFull);
+                    return false;
+                }
+
+                // if there's no app type, use the display name as the type
+                if (appType == null)
+                    appType = displayName;
+
+                // success
+                return true;
+            }
+        }
+        public List<ProgramInfo> programs = new List<ProgramInfo>();
 
         public void Save()
         {
@@ -293,6 +411,10 @@ namespace PinVol
                 // add the active device list
                 foreach (var kvp in devices)
                     lines.Add("Device = " + SaveDevice(kvp.Value));
+
+                // add the program list
+                foreach (var p in programs)
+                    lines.Add("Program = " + p.ConfigText());
 
                 // write the file
                 File.WriteAllLines(filename, lines);

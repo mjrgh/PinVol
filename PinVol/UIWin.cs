@@ -1628,7 +1628,7 @@ namespace PinVol
             var oldAppType = appmon.GetAppType();
 
             // check for changes in the foreground application
-            if (appmon.CheckActiveApp())
+            if (appmon.CheckActiveApp(cfg))
             {
                 // set the label showing the current app
                 lblCurApp.Text = appmon.FriendlyName;

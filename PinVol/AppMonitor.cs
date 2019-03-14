@@ -6,10 +6,52 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.IO;
 
+// Disable warnings related to unreachable code from const expressions in 
+// if statements and ?: expressions, for the sake of DistinguishPBYGames
+// conditional code.  We actually *want* the not-selected code to be 
+// "unreachable", since that means the compiler won't bother generating 
+// code for the unreachable branch or the unchanging condition test.
+#pragma warning disable 0162, 0429
+
 namespace PinVol
 {
     public class AppMonitor
     {
+        // GLOBAL OPTION SETTING:  Do we want to remember separate volume levels
+        // for different games in PinballY?  
+        //
+        // False means that we use the original treatment, where PinVol is treated
+        // as a single "game" with a single saved volume level, no matter which
+        // game is selected.
+        //
+        // If you set this to true, PinVol will keep track of the current game
+        // selection in PinballY and remember a separate volume level for each
+        // game.  (The feature also requires PinballY beta 8 or later, as the 
+        // new code to notify PinVol of selection changes was added there.)
+        //
+        // The default is false, because I think the whole feature turned out to 
+        // be a bad idea.  I implemented it to address a PinballY enhancement 
+        // request (PinballY issue #9 on github) proposing per-game control over 
+        // background media volume levels.  At first glance I thought PinVol would 
+        // be an ideal way to address this, since the feature is analogous to 
+        // PinVol's per-game volume memory for running games, and because it would
+        // nicely conserve keys by using the existing PinVol buttons to adjust the
+        // per-game volume.  But on reflection, I think this is the wrong approach. 
+        // The problem is that PinballY has both game-specific audio (from the
+        // videos and table audio tracks) and "global" audio effects (e.g., from 
+        // button presses).  The point of the enhancement request was that some
+        // background audio/video tracks in PinballY are too loud and others are
+        // too soft, so you want a way to equalize the levels of those tracks.
+        // But the global sounds are already inherently equalized since the same
+        // sounds are used in all games, so you DON'T want to mess with their
+        // levels from game to game.  PinVol can't set those levels separately,
+        // though, so if we use PinVol to turn down a table video that's too
+        // loud, we get the unwanted side effect of also turning down the
+        // button press sounds that were already just right.  So we really need
+        // to do any per-game media volume adjustment in PinballY, not in PinVol.
+        //
+        const bool DistinguishPBYGames = false;
+
         public AppMonitor()
         {
         }
@@ -21,19 +63,12 @@ namespace PinVol
         }
         String app;
 
-        // current foreground application type
-        public enum AppType
-        {
-            System,  // any unknown app type
-            VP,
-            FP,
-            PinballX,
-            PinballY,
-            Other    // other known app types not included above
-        };
-        AppType appType = AppType.System;
+        // Application type.  This gives the class of application for apps that
+        // can have multiple distinguished instances with different games, such as 
+        // VP or FP.
+        String appType = "System";
 
-        public AppType GetAppType() { return appType; }
+        public String GetAppType() { return appType; }
 
         // current foreground HWND
         IntPtr fgwin = IntPtr.Zero;
@@ -48,12 +83,18 @@ namespace PinVol
             {
                 if (app == null)
                     return "None";
-                else if (appType == AppType.VP)
+                else if (appType == "VP")
                     return app == "VP" ? "Visual Pinball" : Program.mailslotThread.GetGameTitle(app.Substring(3));
-                else if (appType == AppType.FP)
+                else if (appType == "FP")
                     return Program.mailslotThread.GetGameTitle(app.Substring(3));
-                else if (appType == AppType.PinballY)
+                else if (appType == "PinballY")
+                {
+                    // If we're distinguishing different game selections in the PinballY
+                    // wheel UI, and a game is selected, the app name will be of the form 
+                    // PinballY.<game-id>.  If we're not distinguishing games or there's
+                    // no game currently selected, app == "PinballY".
                     return app == "PinballY" ? "PinballY" : Program.mailslotThread.GetPBYTitle(app.Substring(9));
+                }
                 else
                     return app;
             }
@@ -61,11 +102,11 @@ namespace PinVol
         
         // Check to see which application is active.  Returns true if the
         // active app has changed since the last check, false if not.
-        public bool CheckActiveApp()
+        public bool CheckActiveApp(Config cfg)
         {
             // assume no change
             String app = App;
-            AppType appType = this.appType;
+            String appType = this.appType;
 
             // Check for a change in the foreground process.  Also check for a change
             // in window title if the last app was identified as "global".  The global
@@ -73,17 +114,34 @@ namespace PinVol
             // possible that it actually is one of our specially identifiable programs,
             // and it just hasn't opened the window by which we can identify it yet,
             // or hasn't set the window title to the recognizable pattern yet.
+            //
+            // A couple of special cases:
+            //
+            // - If the app name is "VP", with no game ID suffix, it means that we
+            //   recognized a blank VP window with no game loaded.  When launching a
+            //   game in /play mode, VP opens its designer MDI frame window for a 
+            //   few seconds with nothing loaded.  This window will get updated to
+            //   reflect the loaded filename after the load process is completed.
+            //   So we have to keep checking for a change in this state, since the
+            //   same window will still be in the foreground when the change occurs,
+            //   hence our normal rule (of simply waiting for a new window to come
+            //   to the foreground) won't recognize the change.
+            //
+            // - If the app type is PinballY, AND we're distinguishing volume levels
+            //   for individual game selections in the PinballY wheel UI, check the
+            //   mail slot server for an update to the wheel selection.
+            //
             IntPtr curwin = GetForegroundWindow();
             int pid, tid = GetWindowThreadProcessId(curwin, out pid);
             if (pid != fgpid 
                 || app == GlobalContextName 
                 || app == "VP"
-                || (appType == AppType.PinballY && Program.mailslotThread.IsPBYSelectionChanged()))
+                || (DistinguishPBYGames && appType == "PinballY" && Program.mailslotThread.IsPBYSelectionChanged()))
             {
                 // switch to the global context, on the assumption that we won't find
                 // a window we recognize
                 app = GlobalContextName;
-                appType = AppType.System;
+                appType = "System";
 
                 // Check what's running based on the window name.  Scan all of the windows
                 // associated with this thread, since the one that we use to identify the
@@ -129,7 +187,7 @@ namespace PinVol
                         {
                             // it's a Visual Pinball window
                             app = "VP." + m.Groups[1].Value;
-                            appType = AppType.VP;
+                            appType = "VP";
 
                             // we've found a suitable window - stop the enumeration
                             return false;
@@ -138,7 +196,7 @@ namespace PinVol
                         {
                             // it's a Future Pinball window
                             app = "FP." + Path.GetFileNameWithoutExtension(m.Groups[1].Value);
-                            appType = AppType.FP;
+                            appType = "FP";
                             return false;
                         }
 
@@ -146,7 +204,7 @@ namespace PinVol
                         {
                             // The PinballX front end is running
                             app = "PinballX";
-                            appType = AppType.PinballX;
+                            appType = "PinballX";
 
                             // remember this process ID as PinballX, so that we can recognize
                             // other windows from this process even if they have different names
@@ -157,10 +215,28 @@ namespace PinVol
                         {
                             // the window is part of the PinballX process
                             app = "PinballX";
-                            appType = AppType.PinballX;
+                            appType = "PinballX";
                             return false;
                         }
 
+                        Func<bool> SetPBY = delegate()
+                        {
+                            // set the PinballY app type
+                            appType = "PinballY";
+
+                            // If we're distinguishing volume levels for different PinballY 
+                            // game selections, use the format PinballY.<game-id>.  Otherwise
+                            // it's just "PinballY".
+                            if (DistinguishPBYGames)
+                            {
+                                String id = Program.mailslotThread.GetPBYSelection();
+                                app = id == "" ? "PinballY" : "PinballY." + id;
+                            }
+                            else
+                                app = "PinballY";
+
+                            return false;
+                        };
                         if (title == "PinballY" || title.StartsWith("PinballY -"))
                         {
                             if (GetProcessName() == "pinbally.exe")
@@ -169,50 +245,82 @@ namespace PinVol
                                 String wc = GetWindowClassName(hwnd);
                                 if (wc != null && wc.StartsWith("PinballY."))
                                 {
-                                    // the PinballY front end is running
-                                    String id = Program.mailslotThread.GetPBYSelection();
-                                    app = id == "" ? "PinballY" : "PinballY." + id;
-                                    appType = AppType.PinballY;
                                     pbyPid = pid;
-                                    return false;
+                                    return SetPBY();
                                 }
                             }
                         }
                         if (pid == pbyPid)
-                        {
-                            // the window is part of the PinballY process
-                            String id = Program.mailslotThread.GetPBYSelection();
-                            app = id == "" ? "PinballY" : "PinballY." + id;
-                            appType = AppType.PinballY;
-                            return false;
-                        }
+                            return SetPBY();
 
                         if (title == "PinUP Menu Player")
                         {
                             app = "PinUP Popper";
-                            appType = AppType.Other;
+                            appType = "PinUpPopper";
                             pupPid = pid;
                             return false;
                         }
                         if (pid == pupPid)
                         {
                             app = "PinUP Popper";
-                            appType = AppType.Other;
+                            appType = "PinUpPopper";
                             return false;
                         }
 
                         if (title == "Pinball FX3" && GetProcessName() == "pinball fx3.exe")
                         {
                             app = "Pinball FX3";
-                            appType = AppType.Other;
+                            appType = "FX3";
                             return false;
                         }
 
                         if (title == "DEMON'S TILT" && GetProcessName() == "demon's tilt.exe")
                         {
                             app = "Demon's Tilt";
-                            appType = AppType.Other;
+                            appType = "Demon's Tilt";
                             return false;
+                        }
+
+                        // check other programs added by the user
+                        foreach (var p in cfg.programs)
+                        {
+                            // check the process name, if specified
+                            if (p.exe != null && p.exe != GetProcessName())
+                                continue;
+
+                            // check the window title, if specified
+                            if (p.windowTitle != null && p.windowTitle != title)
+                                continue;
+
+                            // check the window title pattern, if specified
+                            Match windowPatternMatch = null;
+                            if (p.windowPattern != null && !(windowPatternMatch = p.windowPattern.Match(title)).Success)
+                                continue;
+
+                            // It's a match - apply the display name.  Replace $1, $2, etc with
+                            // the corresponding match items from the window title pattern, if
+                            // supplied.
+                            appType = p.appType;
+                            app = Regex.Replace(p.displayName, @"\$([1-9&$])", mm => 
+                            {
+                                // get the $ code
+                                String g = mm.Groups[1].Value;
+
+                                // $$ -> literal $
+                                if (g == "$")
+
+                                // $& -> full original window title
+                                if (g == "&")
+                                    return title;
+
+                                // $<digit> -> nth group match
+                                int i;
+                                if (Int32.TryParse(g, out i) && windowPatternMatch != null && i >= 1 && i < windowPatternMatch.Groups.Count)
+                                    return windowPatternMatch.Groups[i].Value;
+
+                                // no substitution - return the original $ sequence literally
+                                return mm.Value;
+                            });
                         }
                     }
 
@@ -228,15 +336,21 @@ namespace PinVol
                 // If we didn't identify the app more specifically than "System", check
                 // a special case.  When Visual Pinball first starts in /play mode, it
                 // opens a window titled just "Visual Pinball", with no document loaded.
-                if (appType == AppType.System && curwin != IntPtr.Zero)
+                if (appType == "System" && curwin != IntPtr.Zero)
                 {
                     // get the window title
                     int n = 256;
                     StringBuilder buf = new StringBuilder(n);
                     if (GetWindowText(curwin, buf, n) > 0 && buf.ToString() == "Visual Pinball")
                     {
-                        appType = AppType.VP;
+                        // It's a blank VP window.  Record this as just "VP" with no game ID.
+                        appType = "VP";
                         app = "VP";
+
+                        // Don't signal a change to the caller, so that we don't trigger an
+                        // OSD popup.  It's nicer to defer the OSD popup until the game is
+                        // actually loaded and we know its name.
+                        return false;
                     }
                 }
 
