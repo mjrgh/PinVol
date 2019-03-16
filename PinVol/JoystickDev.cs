@@ -23,20 +23,6 @@ namespace PinVol
             this.hWait = new EventWaitHandle(false, EventResetMode.AutoReset);
             this.productName = js.Information.ProductName.TrimEnd('\0');
             this.isPinscape = Regex.IsMatch(this.productName, @"Pinscape\s*Controller");
-
-            // try reading the state, to determine the size of the button state array
-            var state = new JoystickState();
-            try 
-            { 
-                js.GetCurrentState(ref state);
-                this.nButtonArray = state.Buttons.Length;
-            } 
-            catch 
-            {
-                // can't read the state; assume the max index is the same as
-                // the button count
-                this.nButtonArray = this.nButtons;
-            }
         }
 
         // our DirectInput instance
@@ -51,7 +37,6 @@ namespace PinVol
         public Guid instanceGuid;       // instance GUID of Windows HID
         public String productName;      // product name string from device
         public int nButtons;            // number of buttons
-        public int nButtonArray;        // number of buttons in button state array
         public WaitHandle hWait;        // event wait handle, for state change notifications
         public Thread thread;           // state monitor thread
         public bool isPinscape;         // is this a Pinscape controller?
@@ -105,10 +90,14 @@ namespace PinVol
         // joysticks not already in the list.
         public static void Rescan()
         {
+            // log scans for debugging purposes?
+            bool log = false;
+            if (log)
+                Log.Info("Scanning for USB devices");
+
             // get the list of attached joysticks
             var devices = directInput.GetDevices(DeviceClass.All, DeviceEnumerationFlags.AttachedOnly);
             int unitNo = joysticks.Count + 1;
-            Log.Info("Scanning for USB devices");
             foreach (var dev in devices)
             {
                 // if this device is already in our list, there's nothing to do
@@ -123,12 +112,17 @@ namespace PinVol
                 bool isGamepad = (dev.UsagePage == SharpDX.Multimedia.UsagePage.Generic
                     && dev.Usage == SharpDX.Multimedia.UsageId.GenericGamepad);
 
-                // log it
+                // note the product name for logging purposes
                 String productName = dev.ProductName.TrimEnd('\0');
-                Log.Info((isJoystick ? "  Found joystick: " : isGamepad ? "  Found gamepad: " : "  Found non-joystick device: ")
-                    + productName 
-                    + ", DirectInput type=" + dev.Type + "/" + dev.Subtype
-                    + ", USB usage=" + (int)dev.UsagePage + "." + (int)dev.Usage);
+
+                // log it if desired
+                if (log)
+                {
+                    Log.Info((isJoystick ? "  Found joystick: " : isGamepad ? "  Found gamepad: " : "  Found non-joystick device: ")
+                        + productName
+                        + ", DirectInput type=" + dev.Type + "/" + dev.Subtype
+                        + ", USB usage=" + (int)dev.UsagePage + "." + (int)dev.Usage);
+                }
 
                 // skip devices that aren't joysticks or gamepads
                 if (!isJoystick && !isGamepad)
