@@ -17,7 +17,10 @@ namespace PinVol
             None,
             Local,      // local table setting for default audio device
             Local2,     // local table setting for secondary audio device
-            Global      // global volume setting
+            Global,      // global volume setting
+            SSFBG,         // SSF Back Glass volume setting
+            SSFRS,         // SSF Rear Sides volume setting
+            SSFFS,         // SSF Front Sides volume setting
         };
 
         public OSDWin(UIWin mainwin)
@@ -153,6 +156,27 @@ namespace PinVol
                     DrawVolumeBar(gr,
                         "Global Volume   " + Math.Round(v * 100) + "%" + muted, v, r);
                     break;
+
+                case OSDType.SSFBG:
+                    DrawVolumeBar(gr,
+                        "<< " + mainwin.appmon.FriendlyName + " >>\nSSF Back Glass Gain   "
+                        + Math.Round(mainwin.SSFBGVolume) + "db" + muted,
+                        mainwin.SSFBGVolume, r);
+                    break;
+
+                case OSDType.SSFRS:
+                    DrawVolumeBar(gr,
+                        "<< " + mainwin.appmon.FriendlyName + " >>\nSSF Front Exciters Gain   "
+                        + Math.Round(mainwin.SSFRSVolume) + "db" + muted,
+                        mainwin.SSFRSVolume, r);
+                    break;
+
+                case OSDType.SSFFS:
+                    DrawVolumeBar(gr,
+                        "<< " + mainwin.appmon.FriendlyName + " >>\nSSF Rear Exciters Gain   "
+                        + Math.Round(mainwin.SSFFSVolume) + "db" + muted,
+                        mainwin.SSFFSVolume, r);
+                    break;
             }
         }
 
@@ -196,6 +220,12 @@ namespace PinVol
 
                 case OSDType.Local2:
                     rcbrush = txbrush = Brushes.Violet;
+                    break;
+
+                case OSDType.SSFBG:
+                case OSDType.SSFRS:
+                case OSDType.SSFFS:
+                    rcbrush = txbrush = Brushes.White;
                     break;
 
                 case OSDType.Global:

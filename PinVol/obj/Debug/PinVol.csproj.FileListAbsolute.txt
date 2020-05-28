@@ -1,0 +1,14 @@
+C:\Users\Home\Source\Repos\mrloofer\PinVol\PinVol\bin\Debug\PinVol.exe.config
+C:\Users\Home\Source\Repos\mrloofer\PinVol\PinVol\bin\Debug\PinVol.exe
+C:\Users\Home\Source\Repos\mrloofer\PinVol\PinVol\bin\Debug\PinVol.pdb
+C:\Users\Home\Source\Repos\mrloofer\PinVol\PinVol\obj\Debug\PinVol.csprojAssemblyReference.cache
+C:\Users\Home\Source\Repos\mrloofer\PinVol\PinVol\obj\Debug\PinVol.AudioOutputs.resources
+C:\Users\Home\Source\Repos\mrloofer\PinVol\PinVol\obj\Debug\PinVol.LogViewer.resources
+C:\Users\Home\Source\Repos\mrloofer\PinVol\PinVol\obj\Debug\PinVol.UIWin.resources
+C:\Users\Home\Source\Repos\mrloofer\PinVol\PinVol\obj\Debug\PinVol.GetKey.resources
+C:\Users\Home\Source\Repos\mrloofer\PinVol\PinVol\obj\Debug\PinVol.Properties.Resources.resources
+C:\Users\Home\Source\Repos\mrloofer\PinVol\PinVol\obj\Debug\PinVol.OSDWin.resources
+C:\Users\Home\Source\Repos\mrloofer\PinVol\PinVol\obj\Debug\PinVol.csproj.GenerateResource.cache
+C:\Users\Home\Source\Repos\mrloofer\PinVol\PinVol\obj\Debug\PinVol.csproj.CoreCompileInputs.cache
+C:\Users\Home\Source\Repos\mrloofer\PinVol\PinVol\obj\Debug\PinVol.exe
+C:\Users\Home\Source\Repos\mrloofer\PinVol\PinVol\obj\Debug\PinVol.pdb

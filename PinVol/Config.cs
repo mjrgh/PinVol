@@ -26,6 +26,14 @@ namespace PinVol
             keys["local2VolDown"] = new KeyInfo(Keys.None);
             keys["nightMode"] = new KeyInfo(Keys.F7, false, false, false, true);
 
+            // SSF Keys
+            keys["SSFBGVolUp"] = new KeyInfo(Keys.VolumeUp, true, false, false, false);
+            keys["SSFBGVolDown"] = new KeyInfo(Keys.VolumeDown, true, false, false, false);
+            keys["SSFRSVolUp"] = new KeyInfo(Keys.VolumeUp, false, true, false, false);
+            keys["SSFRSVolDown"] = new KeyInfo(Keys.VolumeDown, false, true, false, false);
+            keys["SSFFSVolUp"] = new KeyInfo(Keys.VolumeUp, false, false, true, false);
+            keys["SSFFSVolDown"] = new KeyInfo(Keys.VolumeDown, false, false, true, false);
+
             // set the default OSD window to the right side of the screen
             Rectangle rc = Screen.FromControl(win).Bounds;
             OSDPos = new Rectangle(rc.Width - 230, 50, 180, rc.Height - 125);
@@ -47,6 +55,7 @@ namespace PinVol
         public Rectangle OSDPos = new Rectangle(50, 50, 180, 680);    // overlay position
         public bool EnableJoystick = false;             // enable joystick input
         public bool EnableLocal2 = false;               // enable independent control over secondary device volume per table
+        public int SSFdBLimit = 10;                     // value for the SSF slider.
 
         // Audio device record.  This represents the saved config data
         // corresponding to a UIWin.AudioDevice object.  
@@ -242,6 +251,8 @@ namespace PinVol
                                 EnableLocal2 = bool.Parse(value);
                             else if (varname == "program")
                                 ParseProgram(value);
+                            else if (varname == "ssfdblimit")
+                                SSFdBLimit = int.Parse(value);
                             else
                                 Log.Error("Invalid key name in config file at line " + lineNum + ": " + m.Groups[1].Value);
                         }
@@ -407,6 +418,7 @@ namespace PinVol
                 lines.Add("UnMuteOnVolChange = " + UnMuteOnVolChange);
                 lines.Add("EnableJoystick = " + EnableJoystick);
                 lines.Add("EnableSecondary = " + EnableLocal2);
+                lines.Add("SSFdBLimit = " + SSFdBLimit); 
 
                 // add the active device list
                 foreach (var kvp in devices)

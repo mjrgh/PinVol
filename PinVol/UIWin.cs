@@ -14,6 +14,7 @@ using SharpDX;
 using SharpDX.DirectInput;
 using System.Runtime.InteropServices;
 using System.Reflection;
+using Microsoft.Win32;
 
 
 namespace PinVol
@@ -34,9 +35,12 @@ namespace PinVol
         {
             public LocalVol() { primary = secondary = 1.0f; }
             public LocalVol(float p) { primary = p; secondary = 1.0f; }
-            public LocalVol(float p, float s) { primary = p; secondary = s; }
+            public LocalVol(float p, float s, float bg, float rs, float fs) { primary = p; secondary = s; SSFBG = bg; SSFRS = rs; SSFFS = fs; }
             public float primary;       // primary audio device local volume
             public float secondary;     // secondary audio device volume, as a fraction of primary
+            public float SSFBG;     // SSF Back Glass volume
+            public float SSFRS;     // SSF Rear Sides volume
+            public float SSFFS;     // SSF Front Sides volume
         }
         Dictionary<String, LocalVol> appVol = new Dictionary<String, LocalVol>();
 
@@ -56,19 +60,19 @@ namespace PinVol
                 {
                     // read the file contents and parse it
                     String[] lines = File.ReadAllLines(volPath);
-                    for (int lineno = 0 ; lineno < lines.Length ; ++lineno)
+                    for (int lineno = 0; lineno < lines.Length; ++lineno)
                     {
                         // skip comments
                         if (Regex.IsMatch(lines[lineno], @"^\s*(#|$)"))
                             continue;
-                        
+
                         // check for the volume level line
                         Match m = Regex.Match(lines[lineno], @"(?i)^\s*(global|night|default)\s*=\s*(\d+)\s*#?");
                         if (m.Success)
                         {
                             // parse out the groups and store the day/night global volume level
-                            String type = m.Groups[1].Value.ToLower();;
-                            float val = LimitVolume(int.Parse(m.Groups[2].Value)/100.0f);
+                            String type = m.Groups[1].Value.ToLower(); ;
+                            float val = LimitVolume(int.Parse(m.Groups[2].Value) / 100.0f);
                             switch (type)
                             {
                                 case "global":
@@ -130,13 +134,32 @@ namespace PinVol
                             if (Regex.IsMatch(line, @"^\s*(#|$)"))
                                 continue;
 
-                            // app lines have the format <application name><tab><level as percentage>
-                            Match m = Regex.Match(line, @"^([^\t]*)\t(\d+)(?:\t(\d+))?$");
+                            // app lines have the format <application name><tab><level as percentage> NOTE: SSF values are DB not percentage.
+                            // Match m = Regex.Match(line, @"^([^\t]*)\t(\d+)(?:\t(\d+))?$");
+                            Match m = Regex.Match(line, @"^([^\t]*)\t(\d+)\t(\d+)?");
                             if (m.Success)
                             {
-                                float primary = int.Parse(m.Groups[2].Value) / 100.0f;
-                                float secondary = m.Groups[3].Success ? int.Parse(m.Groups[3].Value) / 100.0f : primary;
-                                appVol[m.Groups[1].Value] = new LocalVol(primary, secondary);
+                                // First two values are always primary/secondary. If upgrading from prior non-SSF then set those values to 0 if not present
+                                string sep = "\t";
+                                string[] splitContent = line.Split(sep.ToCharArray());
+
+                                float primary = int.Parse(splitContent[1]) / 100.0f;
+                                float secondary = int.Parse(splitContent[2]) / 100.0f;
+
+                                // SSF
+                                float SSFBGVolume = 0;
+                                float SSFRSVolume = 0;
+                                float SSFFSVolume = 0;
+
+                                if (splitContent.Length > 3)
+                                {
+                                    SSFBGVolume = int.Parse(splitContent[3]);
+                                    SSFRSVolume = int.Parse(splitContent[4]);
+                                    SSFFSVolume = int.Parse(splitContent[5]);
+                                }
+
+                                appVol[splitContent[0]] = new LocalVol(primary, secondary, SSFBGVolume, SSFRSVolume, SSFFSVolume);
+
                                 continue;
                             }
 
@@ -212,7 +235,11 @@ namespace PinVol
             // add the volume data
             foreach (KeyValuePair<String, LocalVol> p in appVol)
                 lines.Add(p.Key + "\t" + Math.Round(p.Value.primary * 100.0f).ToString()
-                    + "\t" + Math.Round(p.Value.secondary * 100.0f).ToString());
+                    + "\t" + Math.Round(p.Value.secondary * 100.0f).ToString()
+                    + "\t" + p.Value.SSFBG.ToString()
+                    + "\t" + p.Value.SSFRS.ToString()
+                    + "\t" + p.Value.SSFFS.ToString()
+                    );
 
             // write it out
             try
@@ -241,15 +268,18 @@ namespace PinVol
         String curApp;
 
         // Save the current local volume for the current app/table in the database
-        void SetLocalVol(LocalVol vol) 
-        { 
-            SetLocalVol(vol.primary, vol.secondary);
+        void SetLocalVol(LocalVol vol)
+        {
+            SetLocalVol(vol.primary, vol.secondary, vol.SSFBG, vol.SSFRS, vol.SSFFS);
         }
-        void SetLocalVol(float primary, float secondary)
+        void SetLocalVol(float primary, float secondary, float SSFBG, float SSFRS, float SSFFS)
         {
             // update the internal local volume
             localVolume = primary = LimitVolume(primary);
             local2Volume = secondary = LimitVolume(secondary);
+            SSFBGVolume = LimitSSFVolume(SSFBG);
+            SSFRSVolume = LimitSSFVolume(SSFRS);
+            SSFFSVolume = LimitSSFVolume(SSFFS);
 
             // update the local database if it's a change to the stored value
             if (curApp != null)
@@ -257,13 +287,16 @@ namespace PinVol
                 LocalVol v;
                 if (!appVol.ContainsKey(curApp))
                 {
-                    appVol[curApp] = new LocalVol(primary, secondary);
+                    appVol[curApp] = new LocalVol(primary, secondary, SSFBG, SSFRS, SSFFS);
                     SetLocalVolDirty();
                 }
-                else if ((v = appVol[curApp]).primary != primary || v.secondary != secondary)
+                else if ((v = appVol[curApp]).primary != primary || v.secondary != secondary || v.SSFBG != SSFBG || v.SSFRS != SSFRS || v.SSFFS != SSFFS)
                 {
                     v.primary = primary;
                     v.secondary = secondary;
+                    v.SSFBG = SSFBG;
+                    v.SSFRS = SSFRS;
+                    v.SSFFS = SSFFS;
                     SetLocalVolDirty();
                 }
             }
@@ -306,6 +339,18 @@ namespace PinVol
         public VolumeMode volumeMode = VolumeMode.Day;
         public VolumeModeSource volumeModeSource = VolumeModeSource.None;
 
+        // SSF stuff
+        public float SSFBGVolume = 0.0f;
+        public float SSFRSVolume = 0.0f;
+        public float SSFFSVolume = 0.0f;
+        public static String SSFBGVolUpKey;
+        public static String SSFBGVolDownKey;
+        public static String SSFRSVolUpKey;
+        public static String SSFRSVolDownKey;
+        public static String SSFFSVolUpKey;
+        public static String SSFFSVolDownKey;
+        public static String eqAPOPAth;
+
         // Current volume mode
         public enum VolumeMode
         {
@@ -346,7 +391,7 @@ namespace PinVol
                 // create our hot key
                 hotkey = new Hotkey(key);
                 hotkey.AutoRepeat = autoRepeat;
-                hotkey.Pressed += (object sender, HandledEventArgs args) => 
+                hotkey.Pressed += (object sender, HandledEventArgs args) =>
                 {
                     // skip if the key selection dialog is open
                     if (!keyDlgOpen)
@@ -414,9 +459,9 @@ namespace PinVol
             // status report for logging
             public String Status()
             {
-                return key.ToString() 
-                    + (key.key == Keys.None ? "" : 
-                       hotkey.Registered ? "" : 
+                return key.ToString()
+                    + (key.key == Keys.None ? "" :
+                       hotkey.Registered ? "" :
                        " !!Hotkey registration failed");
             }
 
@@ -552,6 +597,11 @@ namespace PinVol
         KeyField localUpKey, localDownKey;
         KeyField local2UpKey, local2DownKey;
 
+        //SSF
+        KeyField SSFBGUpKey, SSFBGDownKey;
+        KeyField SSFRSUpKey, SSFRSDownKey;
+        KeyField SSFFSUpKey, SSFFSDownKey;
+
         // configuration data
         public Config cfg;
 
@@ -620,7 +670,7 @@ namespace PinVol
                 {
                     // remember it as the default
                     defaultDevice = ad;
-                    
+
                     // the default device is always active
                     ad.isActive = true;
 
@@ -642,7 +692,7 @@ namespace PinVol
         EventWaitHandle pinscapeThreadExit = null;
         void PinscapeMonitor()
         {
-            for (;;)
+            for (; ; )
             {
                 // determine if any Pinscape units are in night mode
                 bool night = pinscapeUnits.Any(p => p.InNightMode());
@@ -727,6 +777,24 @@ namespace PinVol
 
         }
 
+        private void Form1_Resize(object sender, EventArgs e)
+        {
+            //if the form is minimized  
+            //hide it from the task bar  
+            //and show the system tray icon (represented by the NotifyIcon control)  
+            if (this.WindowState == FormWindowState.Minimized)
+            {
+                Hide();
+                notifyIcon1.Visible = true;
+            }
+        }
+        private void notifyIcon1_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            Show();
+            this.WindowState = FormWindowState.Normal;
+            notifyIcon1.Visible = false;
+        }
+
         // Start the UI
         private void Form1_Load(object sender, EventArgs e)
         {
@@ -743,6 +811,24 @@ namespace PinVol
                 pinscapeThread = new Thread(PinscapeMonitor);
                 pinscapeThreadExit = new EventWaitHandle(false, EventResetMode.ManualReset);
                 pinscapeThread.Start();
+            }
+
+            // SSF area
+            // Check for APO config path and enable SSF area if path exists
+
+            using (var hklm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
+            using (var key = hklm.OpenSubKey(@"SOFTWARE\EqualizerAPO"))
+            {
+                if (key != null) {
+                    eqAPOPAth = key.GetValue("ConfigPath").ToString();
+                    SSFGroupBox.Text = "SSF (EQ APO Installed)";
+                    SSFGroupBox.Enabled = true;
+                    tabPage2.Enabled = true;
+                } else
+                {
+                    tabPage2.Enabled = false;
+                }
+
             }
 
             // load the configuration
@@ -798,18 +884,26 @@ namespace PinVol
             // we fail to load saved volume levels
             globalVolume[0] = globalVolume[1] = defaultVolume = -1.0f;
 
+            // set the SSF dB limit value input
+            numSSFdBLimit.Value = cfg.SSFdBLimit;
+
             // Load the saved global volume level and local volume database.  This
             // will replace the defaults we just set (based on the current device
             // volume settings in the system) if we have saved global levels.
             LoadSavedVols();
 
             // start with the local volume for "System"
-            LocalVol v = appVol.ContainsKey(AppMonitor.GlobalContextName) ? 
-                appVol[AppMonitor.GlobalContextName] : new LocalVol(1.0f, 1.0f);
+            LocalVol v = appVol.ContainsKey(AppMonitor.GlobalContextName) ?
+                appVol[AppMonitor.GlobalContextName] : new LocalVol(1.0f, 1.0f, 0, 0, 0);
 
             // pull out the primary and secondary local volumes, limiting the valid levels
             localVolume = LimitVolume(v.primary);
             local2Volume = LimitVolume(v.secondary);
+
+            // Pull out the SSF volumes
+            SSFBGVolume = v.SSFBG;
+            SSFRSVolume = v.SSFRS;
+            SSFFSVolume = v.SSFFS;
 
             // If we didn't read valid saved global volumes, apply defaults.
             if (globalVolume[0] <= 0)
@@ -831,17 +925,29 @@ namespace PinVol
             }
             if (defaultVolume < 0)
                 defaultVolume = 0.66f;
-           
+
             // update the volume controls to match
             UpdateVolume(OSDWin.OSDType.None);
+
+            // update SSF volume controls to match
+            //UpdateSSFVolume();
 
             // update the default volume control
             int nominalDefaultVolume = (int)Math.Round(defaultVolume * 100.0f);
             lblDefaultVol.Text = nominalDefaultVolume + "%";
             trkDefaultVol.Value = nominalDefaultVolume;
 
+            // update the SSF volume controls
+            lblSSFBGVol.Text = (int)LimitSSFVolume(SSFBGVolume) + " dB";
+            trkSSFBGVol.Value = (int)LimitSSFVolume(SSFBGVolume);
+            lblSSFRSVol.Text = (int)LimitSSFVolume(SSFRSVolume) + " dB";
+            trkSSFRSVol.Value = (int)LimitSSFVolume(SSFRSVolume);
+            lblSSFFSVol.Text = (int)LimitSSFVolume(SSFFSVolume) + " dB";
+            trkSSFFSVol.Value = (int)LimitSSFVolume(SSFFSVolume);
+
+
             // wire the UI controls for the keys to the config elements and hotkeys
-            globalUpKey = new KeyField(this, "Global Volume Up", cfg.keys["globalVolUp"], txtGlobalUp,  true,
+            globalUpKey = new KeyField(this, "Global Volume Up", cfg.keys["globalVolUp"], txtGlobalUp, true,
                 () => { GlobalVolumeAdjust(.01f, cfg.OSDOnHotkeys ? OSDWin.OSDType.Global : OSDWin.OSDType.None); });
             globalDownKey = new KeyField(this, "Global Volume Down", cfg.keys["globalVolDown"], txtGlobalDown, true,
                 () => { GlobalVolumeAdjust(-.01f, cfg.OSDOnHotkeys ? OSDWin.OSDType.Global : OSDWin.OSDType.None); });
@@ -857,6 +963,20 @@ namespace PinVol
                 () => { Local2VolumeAdjust(.01f, cfg.OSDOnHotkeys ? OSDWin.OSDType.Local2 : OSDWin.OSDType.None); });
             local2DownKey = new KeyField(this, "Table Volume Down (Secondary)", cfg.keys["local2VolDown"], txtLocal2Down, true,
                 () => { Local2VolumeAdjust(-.01f, cfg.OSDOnHotkeys ? OSDWin.OSDType.Local2 : OSDWin.OSDType.None); });
+
+            // SSF
+            SSFBGUpKey = new KeyField(this, "SSF Back Glass Volume Up", cfg.keys["SSFBGVolUp"], txtSSFBGUp, true,
+                () => { SSFBGVolumeAdjust(1, cfg.OSDOnHotkeys ? OSDWin.OSDType.SSFBG : OSDWin.OSDType.None); });
+            SSFBGDownKey = new KeyField(this, "SSF Back Glass Volume Down", cfg.keys["SSFBGVolDown"], txtSSFBGDown, true,
+                () => { SSFBGVolumeAdjust(-1, cfg.OSDOnHotkeys ? OSDWin.OSDType.SSFBG : OSDWin.OSDType.None); });
+            SSFRSUpKey = new KeyField(this, "SSF Rear Sides Volume Up", cfg.keys["SSFRSVolUp"], txtSSFRSUp, true,
+                () => { SSFRSVolumeAdjust(1, cfg.OSDOnHotkeys ? OSDWin.OSDType.SSFRS : OSDWin.OSDType.None); });
+            SSFRSDownKey = new KeyField(this, "SSF Rear Sides Volume Down", cfg.keys["SSFRSVolDown"], txtSSFRSDown, true,
+                () => { SSFRSVolumeAdjust(-1, cfg.OSDOnHotkeys ? OSDWin.OSDType.SSFRS : OSDWin.OSDType.None); });
+            SSFFSUpKey = new KeyField(this, "SSF Front Sides Volume Up", cfg.keys["SSFFSVolUp"], txtSSFFSUp, true,
+                () => { SSFFSVolumeAdjust(1, cfg.OSDOnHotkeys ? OSDWin.OSDType.SSFFS : OSDWin.OSDType.None); });
+            SSFFSDownKey = new KeyField(this, "SSF Front Sides Volume Down", cfg.keys["SSFFSVolDown"], txtSSFFSDown, true,
+                () => { SSFFSVolumeAdjust(-1, cfg.OSDOnHotkeys ? OSDWin.OSDType.SSFFS : OSDWin.OSDType.None); });
 
             // set the initial UI state to the loaded config values
             AllKeyConfigToUI();
@@ -926,7 +1046,7 @@ namespace PinVol
             bool logIt = cfg.keys.Any(k => k.Value.jsGuid == js.instanceGuid);
             if (logIt)
                 Log.Error("Error reading status for joystick " + js.unitNo + " (" + js.UnitName + ")");
-            
+
             // if joysticks are still enabled, rebuild the joystick list
             if (cfg.EnableJoystick)
             {
@@ -995,7 +1115,18 @@ namespace PinVol
             localDownKey.ConfigToUI();
             local2UpKey.ConfigToUI();
             local2DownKey.ConfigToUI();
+
+            //SSF
+            SSFBGUpKey.ConfigToUI();
+            SSFRSUpKey.ConfigToUI();
+            SSFFSUpKey.ConfigToUI();
+            SSFBGDownKey.ConfigToUI();
+            SSFRSDownKey.ConfigToUI();
+            SSFFSDownKey.ConfigToUI();
+
         }
+
+
 
         private void LogKeyStatus(String header)
         {
@@ -1008,6 +1139,14 @@ namespace PinVol
             Log.Info("  Table volume down: " + localDownKey.Status());
             Log.Info("  Table volume up 2nd device: " + local2UpKey.Status());
             Log.Info("  Table volume down 2nd device: " + local2DownKey.Status());
+
+            //SSF
+            Log.Info("  SSF Back Glass volume up: " + SSFBGUpKey.Status());
+            Log.Info("  SSF Back Glass volume down: " + SSFBGDownKey.Status());
+            Log.Info("  SSF Rear Sides volume up: " + SSFRSUpKey.Status());
+            Log.Info("  SSF Rear Sides volume down: " + SSFRSDownKey.Status());
+            Log.Info("  SSF Front Sides volume up: " + SSFFSUpKey.Status());
+            Log.Info("  SSF Front Sides volume down: " + SSFFSDownKey.Status());
         }
 
         // our private GUID for making system volume level changes, so that we can
@@ -1083,16 +1222,74 @@ namespace PinVol
 
         private void LocalVolumeAdjust(float delta, OSDWin.OSDType osdType)
         {
-            SetLocalVol(localVolume + delta, local2Volume);
+            SetLocalVol(localVolume + delta, local2Volume, SSFBGVolume, SSFRSVolume, SSFFSVolume);
             CheckMute();
             UpdateVolume(osdType);
         }
 
         private void Local2VolumeAdjust(float delta, OSDWin.OSDType osdType)
         {
-            SetLocalVol(localVolume, local2Volume + delta);
+            SetLocalVol(localVolume, local2Volume + delta, SSFBGVolume, SSFRSVolume, SSFFSVolume);
             CheckMute();
             UpdateVolume(osdType);
+        }
+
+        private void SSFBGVolumeAdjust(float delta, OSDWin.OSDType osdType)
+        {
+            if ((trkSSFBGVol.Value+(int)delta) >= (-numSSFdBLimit.Maximum) && (trkSSFBGVol.Value+(int)delta) <= numSSFdBLimit.Maximum)
+            {
+                trkSSFBGVol.Value += (int)delta;
+                lblSSFBGVol.Text = trkSSFBGVol.Value + " dB";
+                int value = trkSSFBGVol.Value;
+                SSFBGVolume = value;
+
+                // update the volume settings
+                SetLocalVol(localVolume, local2Volume, SSFBGVolume, SSFRSVolume, SSFFSVolume);
+
+                // Update APO with the SSF volume
+                UpdateSSFVolume();
+            }
+            
+            // show and/or refresh the OSD window
+            ShowOSD(osdType, osdHotkeyTime);
+        }
+        private void SSFRSVolumeAdjust(float delta, OSDWin.OSDType osdType)
+        {
+            if ((trkSSFRSVol.Value + (int)delta) >= -(numSSFdBLimit.Maximum) && (trkSSFRSVol.Value + (int)delta) <= numSSFdBLimit.Maximum)
+            {
+                trkSSFRSVol.Value += (int)delta;
+                lblSSFRSVol.Text = trkSSFRSVol.Value + " dB";
+                SSFRSVolume = trkSSFRSVol.Value;
+
+                // update the volume settings
+                SetLocalVol(localVolume, local2Volume, SSFBGVolume, SSFRSVolume, SSFFSVolume);
+
+                // Update APO with the SSF volume
+                UpdateSSFVolume();
+
+                // show and/or refresh the OSD window
+                ShowOSD(osdType, osdHotkeyTime);
+            }
+        }
+
+        private void SSFFSVolumeAdjust(float delta, OSDWin.OSDType osdType)
+        {
+            if ((trkSSFFSVol.Value + (int)delta) >= -(numSSFdBLimit.Maximum) && (trkSSFFSVol.Value + (int)delta) <= numSSFdBLimit.Maximum)
+            {
+                trkSSFFSVol.Value += (int)delta;
+                lblSSFFSVol.Text = trkSSFFSVol.Value + " dB";
+                SSFFSVolume = trkSSFFSVol.Value;
+
+                // update the volume settings
+                SetLocalVol(localVolume, local2Volume, SSFBGVolume, SSFRSVolume, SSFFSVolume);
+
+                // Update APO with the SSF volume
+                UpdateSSFVolume();
+
+                // show and/or refresh the OSD window
+                ShowOSD(osdType, osdHotkeyTime);
+            }
+  
         }
 
         // Check muting after a change to a volume level.  If the config option
@@ -1112,11 +1309,20 @@ namespace PinVol
             return vol < low ? low : vol > high ? high : vol;
         }
 
+        // Limit a SSF gain level to the allowable range in numSSFdBLimit
+        private float LimitSSFVolume(float vol, float low = 0f, float high = 0f)
+        {
+            low = -(float)numSSFdBLimit.Maximum;
+            high = (float)numSSFdBLimit.Maximum;
+
+            return vol < low ? low : vol > high ? high : vol;
+        }
+
         // Set the volume from an external source
         private void ExtSetVolume(float sysvol, bool mute)
         {
             // note the new mute setting
-            globalMute = mute;            
+            globalMute = mute;
 
             // Figure the new internal volume levels.  The given level 'newvol'
             // is the new system volume, so we have to figure out how this affects
@@ -1135,7 +1341,7 @@ namespace PinVol
                 float newLocalVol = sysvol / globalVolume[(int)volumeMode];
 
                 // set the new volume
-                SetLocalVol(newLocalVol, local2Volume);
+                SetLocalVol(newLocalVol, local2Volume, SSFBGVolume, SSFRSVolume, SSFFSVolume);
             }
             else
             {
@@ -1163,12 +1369,12 @@ namespace PinVol
                     // If the device uses the local app volume, apply the appropriate
                     // local volume.
                     if (ad.useLocal)
-                    { 
+                    {
                         // Figure out which volume to use.  If this is a secondary device
                         // (not the default device), and we're using the independent local
                         // volume control for secondary devices, use the secondary volume.
                         // Otherwise use the main local volume.
-                        float lcl = (ad != defaultDevice && cfg.EnableLocal2) ? 
+                        float lcl = (ad != defaultDevice && cfg.EnableLocal2) ?
                             local2Volume : localVolume;
 
                         // apply it
@@ -1191,10 +1397,29 @@ namespace PinVol
             trkGlobalVol.Value = g;
             lblGlobalVol.Text = g + "%";
 
+            // update the SSF volume trackbar controls
+            trkSSFBGVol.Value = (int)LimitSSFVolume(SSFBGVolume);
+            trkSSFRSVol.Value = (int)LimitSSFVolume(SSFRSVolume);
+            trkSSFFSVol.Value = (int)LimitSSFVolume(SSFFSVolume);
+            lblSSFBGVol.Text = trkSSFBGVol.Value + " dB";
+            lblSSFRSVol.Text = trkSSFRSVol.Value + " dB";
+            lblSSFFSVol.Text = trkSSFFSVol.Value + " dB";
+
+            // Update the SSF volume in APO
+            //UpdateSSFVolume();
+
             // show and/or refresh the OSD window
             ShowOSD(osdType, osdHotkeyTime);
         }
 
+
+        // Update the APO configuration with the SSF volume
+        private void UpdateSSFVolume()
+        {
+            string[] lines = { "# Updated by PinVol Automatically -- do not edit", "Stage: post-mix", "Channel: L R", "Preamp: " + SSFBGVolume + " DB", "Channel: RL RR", "Preamp: " + SSFRSVolume + " DB", "Channel: SL SR", "Preamp: " + SSFFSVolume + " DB" };
+            System.IO.File.WriteAllLines(@eqAPOPAth + "\\PinVolSSF.txt", lines);
+        }
+        
         [DllImport("User32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         internal extern static bool ShowWindow(IntPtr hWnd, int nCmdShow);
         const int SW_SHOW_NO_ACTIVATE = 4;
@@ -1274,7 +1499,7 @@ namespace PinVol
 
         private void trkLocalVol_Scroll(object sender, EventArgs e)
         {
-            SetLocalVol(trkLocalVol.Value / 100.0f, local2Volume);
+            SetLocalVol(trkLocalVol.Value / 100.0f, local2Volume, trkSSFBGVol.Value, trkSSFRSVol.Value, trkSSFFSVol.Value);
             CheckMute();
             UpdateVolume(OSDWin.OSDType.None);
         }
@@ -1293,7 +1518,17 @@ namespace PinVol
                 local2UpKey.Register(this);
                 local2DownKey.Register(this);
             }
+
+            // SSF
+            SSFBGUpKey.Register(this);
+            SSFBGDownKey.Register(this);
+            SSFRSUpKey.Register(this);
+            SSFRSDownKey.Register(this);
+            SSFFSUpKey.Register(this);
+            SSFFSDownKey.Register(this);
+
         }
+
 
         // unregister all keys
         private void UnregisterKeys()
@@ -1309,6 +1544,14 @@ namespace PinVol
                 local2UpKey.Unregister();
                 local2DownKey.Unregister();
             }
+
+            //SSF
+            SSFBGUpKey.Unregister();
+            SSFBGDownKey.Unregister();
+            SSFRSUpKey.Unregister();
+            SSFRSDownKey.Unregister();
+            SSFFSUpKey.Unregister();
+            SSFFSDownKey.Unregister();
         }
 
         // On making a change to any key assignments, we'll un-register ALL of the
@@ -1487,6 +1730,14 @@ namespace PinVol
             if (local2UpKey != null) local2UpKey.Cleanup();
             if (local2DownKey != null) local2DownKey.Cleanup();
             if (nightModeKey != null) nightModeKey.Cleanup();
+
+            //SSF
+            if (SSFBGUpKey != null) SSFBGUpKey.Cleanup();
+            if (SSFBGDownKey != null) SSFBGDownKey.Cleanup();
+            if (SSFRSUpKey != null) SSFRSUpKey.Cleanup();
+            if (SSFRSDownKey != null) SSFRSDownKey.Cleanup();
+            if (SSFFSUpKey != null) SSFFSUpKey.Cleanup();
+            if (SSFFSDownKey != null) SSFFSDownKey.Cleanup();
         }
 
         private void btnHideSettings_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
@@ -1509,20 +1760,26 @@ namespace PinVol
             this.ClientSize = new Size(origWinSize.Width, settingsPanel.Top - 1);
             btnShowSettings.Visible = true;
             settingsPanel.Visible = false;
+            btnHideSettings.Visible = false;
+            //btnHideSettings.Location = new Point(513, 346);
+          
         }
 
         private void btnShowSettings_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
             // restore the original window size
             this.ClientSize = origWinSize;
+            
             btnShowSettings.Visible = false;
             settingsPanel.Visible = true;
+            //btnHideSettings.Location = new Point(560, 346);
+            btnHideSettings.Visible = true;
 
             // update the config to show the settings
             cfg.ShowSettings = true;
             SetCfgDirty();
-        }
 
+        }
         private void ckExtIsLocal_CheckedChanged(object sender, EventArgs e)
         {
             bool f = ckExtIsLocal.Checked;
@@ -1641,9 +1898,10 @@ namespace PinVol
                 if (appVol.ContainsKey(appmon.App))
                     SetLocalVol(appVol[appmon.App]);
                 else
-                    SetLocalVol(defaultVolume, defaultVolume);
+                    SetLocalVol(defaultVolume, defaultVolume, 0, 0, 0);
 
                 UpdateVolume(OSDWin.OSDType.None);
+                UpdateSSFVolume();
 
                 // If desired, bring up the OSD.  Skip this if the application type
                 // isn't changing - e.g., if we're switching between games in PinballY.
@@ -1657,6 +1915,111 @@ namespace PinVol
                 lblErrorAlert.Visible = true;
                 btnViewErrors.Visible = true;
             }
+        }
+
+        private void label22_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void checkBox1_CheckedChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+ 
+         }
+
+        private void txtGlobalUp_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void tabPage1_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label21_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label19_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label31_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void numSSFdBLimit_ValueChanged(object sender, EventArgs e)
+        {
+
+            // Update the track sliders
+            trkSSFBGVol.Minimum = -(int)numSSFdBLimit.Value;
+            trkSSFRSVol.Minimum = -(int)numSSFdBLimit.Value;
+            trkSSFFSVol.Minimum = -(int)numSSFdBLimit.Value;
+            trkSSFBGVol.Maximum = (int)numSSFdBLimit.Value;
+            trkSSFRSVol.Maximum = (int)numSSFdBLimit.Value;
+            trkSSFFSVol.Maximum = (int)numSSFdBLimit.Value;
+
+            // save the config update
+            cfg.SSFdBLimit = (int)numSSFdBLimit.Value;
+            SetCfgDirty();
+        }
+
+        private void trkSSFBGVol_Scroll_1(object sender, EventArgs e)
+        {
+            lblSSFBGVol.Text = trkSSFBGVol.Value + " dB";
+            int value = trkSSFBGVol.Value;
+            SSFBGVolume = value;
+
+            // update the volume settings
+            SetLocalVol(localVolume, local2Volume, SSFBGVolume, SSFRSVolume, SSFFSVolume);
+
+            // Update APO with the SSF volume
+            UpdateSSFVolume();
+
+            // show and/or refresh the OSD window
+            //ShowOSD(OSDWin.OSDType.SSFBG, osdHotkeyTime);
+
+        }
+
+        private void trkSSFRSVol_Scroll(object sender, EventArgs e)
+        {
+            lblSSFRSVol.Text = trkSSFRSVol.Value + " dB";
+            int value = trkSSFRSVol.Value;
+            SSFRSVolume = value;
+
+            // update the volume settings
+            SetLocalVol(localVolume, local2Volume, SSFBGVolume, SSFRSVolume, SSFFSVolume);
+
+            // Update APO with the SSF volume
+            UpdateSSFVolume();
+
+            // show and/or refresh the OSD window
+            //ShowOSD(OSDWin.OSDType.SSFRS, osdHotkeyTime);
+        }
+
+        private void trkSSFFSVol_Scroll(object sender, EventArgs e)
+        {
+            lblSSFFSVol.Text = trkSSFFSVol.Value + " dB";
+            int value = trkSSFFSVol.Value;
+            SSFFSVolume = value;
+
+            // update the volume settings
+            SetLocalVol(localVolume, local2Volume, SSFBGVolume, SSFRSVolume, SSFFSVolume);
+
+            // Update APO with the SSF volume
+            UpdateSSFVolume();
+
+            // show and/or refresh the OSD window
+            //ShowOSD(OSDWin.OSDType.SSFFS, osdHotkeyTime);
         }
 
         private void btnViewErrors_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
@@ -1694,5 +2057,6 @@ namespace PinVol
             Program.configToolTimeout();
         }
 
+        
     }
 }
