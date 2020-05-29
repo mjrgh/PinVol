@@ -5,6 +5,7 @@ using System.Windows.Threading;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.IO;
+using System.Management;
 
 // Disable warnings related to unreachable code from const expressions in 
 // if statements and ?: expressions, for the sake of DistinguishPBYGames
@@ -131,6 +132,10 @@ namespace PinVol
             //   for individual game selections in the PinballY wheel UI, check the
             //   mail slot server for an update to the wheel selection.
             //
+            // - If the app name is Pinball FX3 then we need to tree-walk the processes
+            //   to get the parent Steam process. From there we can determine the method
+            //   by which Steam was initiated and determine if cabinet mode is enabled.
+
             IntPtr curwin = GetForegroundWindow();
             int pid, tid = GetWindowThreadProcessId(curwin, out pid);
             if (pid != fgpid 
@@ -269,8 +274,10 @@ namespace PinVol
 
                         if (title == "Pinball FX3" && GetProcessName() == "pinball fx3.exe")
                         {
-                            app = "Pinball FX3";
+                            // If FX3 was started in cabinet mode then let's get the table name
+                            app = GetFX3Name();
                             appType = "FX3";
+                            
                             return false;
                         }
 
@@ -374,7 +381,7 @@ namespace PinVol
 
         // PinUP Popper process ID, if known
         int pupPid = -1;
-        
+
         // Win32 imports
 
         [DllImport("user32.dll")]
@@ -434,6 +441,37 @@ namespace PinVol
             catch (Exception)
             {
                 return null;
+            }
+        }
+
+        static string GetFX3Name()
+        {
+            try
+            {
+                using (var query = new ManagementObjectSearcher(
+                  "SELECT commandLine " +
+                  "FROM Win32_Process " +
+                  "WHERE commandLine like '%Pinball FX3.exe%-table_%'"))
+                {
+                    String commandLine = "";
+                    foreach (ManagementObject process in query.Get())
+                    {
+                        commandLine = (String)process["commandLine"];
+                    }
+                    Match m = Regex.Match(commandLine, @"-table_(.*)$");
+                    if (m.Success)
+                    {
+                        return "FX3." + m.Groups[1].Value;
+                    } 
+                    else
+                    {
+                        return "Pinball FX3";
+                    }
+                }
+            }
+            catch
+            {
+                return "Pinball FX3";
             }
         }
     }

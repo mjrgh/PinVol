@@ -135,8 +135,8 @@ namespace PinVol
                                 continue;
 
                             // app lines have the format <application name><tab><level as percentage> NOTE: SSF values are DB not percentage.
-                            // Match m = Regex.Match(line, @"^([^\t]*)\t(\d+)(?:\t(\d+))?$");
-                            Match m = Regex.Match(line, @"^([^\t]*)\t(\d+)\t(\d+)?");
+                            Match m = Regex.Match(line, @"^([^\t]*)\t(\d+)(?:\t(\d+))?");
+
                             if (m.Success)
                             {
                                 // First two values are always primary/secondary. If upgrading from prior non-SSF then set those values to 0 if not present
@@ -144,14 +144,21 @@ namespace PinVol
                                 string[] splitContent = line.Split(sep.ToCharArray());
 
                                 float primary = int.Parse(splitContent[1]) / 100.0f;
-                                float secondary = int.Parse(splitContent[2]) / 100.0f;
+
+                                // Get the secondary value if it exists
+                                float secondary = 0.0f;
+
+                                if (splitContent.Length >= 2)
+                                {
+                                    secondary = int.Parse(splitContent[2]) / 100.0f;
+                                }
 
                                 // SSF
                                 float SSFBGVolume = 0;
                                 float SSFRSVolume = 0;
                                 float SSFFSVolume = 0;
 
-                                if (splitContent.Length > 3)
+                                if (splitContent.Length > 5)
                                 {
                                     SSFBGVolume = int.Parse(splitContent[3]);
                                     SSFRSVolume = int.Parse(splitContent[4]);
@@ -815,20 +822,22 @@ namespace PinVol
 
             // SSF area
             // Check for APO config path and enable SSF area if path exists
-
-            using (var hklm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
-            using (var key = hklm.OpenSubKey(@"SOFTWARE\EqualizerAPO"))
             {
-                if (key != null) {
-                    eqAPOPAth = key.GetValue("ConfigPath").ToString();
-                    SSFGroupBox.Text = "SSF (EQ APO Installed)";
-                    SSFGroupBox.Enabled = true;
-                    tabPage2.Enabled = true;
-                } else
+                using (var hklm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
+                using (var key = hklm.OpenSubKey(@"SOFTWARE\EqualizerAPO"))
                 {
-                    tabPage2.Enabled = false;
+                    if (key != null)
+                    {
+                        eqAPOPAth = key.GetValue("ConfigPath").ToString();
+                        SSFGroupBox.Text = "SSF (EQ APO Installed)";
+                        SSFGroupBox.Enabled = true;
+                        tabPage2.Enabled = true;
+                    }
+                    else
+                    {
+                        tabPage2.Enabled = false;
+                    }
                 }
-
             }
 
             // load the configuration
@@ -1127,7 +1136,6 @@ namespace PinVol
         }
 
 
-
         private void LogKeyStatus(String header)
         {
             Log.Info(header);
@@ -1236,7 +1244,7 @@ namespace PinVol
 
         private void SSFBGVolumeAdjust(float delta, OSDWin.OSDType osdType)
         {
-            if ((trkSSFBGVol.Value+(int)delta) >= (-numSSFdBLimit.Maximum) && (trkSSFBGVol.Value+(int)delta) <= numSSFdBLimit.Maximum)
+            if ((trkSSFBGVol.Value+(int)delta) >= (-numSSFdBLimit.Value) && (trkSSFBGVol.Value+(int)delta) <= numSSFdBLimit.Value)
             {
                 trkSSFBGVol.Value += (int)delta;
                 lblSSFBGVol.Text = trkSSFBGVol.Value + " dB";
@@ -1255,7 +1263,7 @@ namespace PinVol
         }
         private void SSFRSVolumeAdjust(float delta, OSDWin.OSDType osdType)
         {
-            if ((trkSSFRSVol.Value + (int)delta) >= -(numSSFdBLimit.Maximum) && (trkSSFRSVol.Value + (int)delta) <= numSSFdBLimit.Maximum)
+            if ((trkSSFRSVol.Value + (int)delta) >= -(numSSFdBLimit.Value) && (trkSSFRSVol.Value + (int)delta) <= numSSFdBLimit.Value)
             {
                 trkSSFRSVol.Value += (int)delta;
                 lblSSFRSVol.Text = trkSSFRSVol.Value + " dB";
@@ -1274,7 +1282,7 @@ namespace PinVol
 
         private void SSFFSVolumeAdjust(float delta, OSDWin.OSDType osdType)
         {
-            if ((trkSSFFSVol.Value + (int)delta) >= -(numSSFdBLimit.Maximum) && (trkSSFFSVol.Value + (int)delta) <= numSSFdBLimit.Maximum)
+            if ((trkSSFFSVol.Value + (int)delta) >= -(numSSFdBLimit.Value) && (trkSSFFSVol.Value + (int)delta) <= numSSFdBLimit.Value)
             {
                 trkSSFFSVol.Value += (int)delta;
                 lblSSFFSVol.Text = trkSSFFSVol.Value + " dB";
@@ -1404,9 +1412,6 @@ namespace PinVol
             lblSSFBGVol.Text = trkSSFBGVol.Value + " dB";
             lblSSFRSVol.Text = trkSSFRSVol.Value + " dB";
             lblSSFFSVol.Text = trkSSFFSVol.Value + " dB";
-
-            // Update the SSF volume in APO
-            //UpdateSSFVolume();
 
             // show and/or refresh the OSD window
             ShowOSD(osdType, osdHotkeyTime);
@@ -1760,9 +1765,7 @@ namespace PinVol
             this.ClientSize = new Size(origWinSize.Width, settingsPanel.Top - 1);
             btnShowSettings.Visible = true;
             settingsPanel.Visible = false;
-            btnHideSettings.Visible = false;
-            //btnHideSettings.Location = new Point(513, 346);
-          
+            btnHideSettings.Visible = false;         
         }
 
         private void btnShowSettings_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
@@ -1772,7 +1775,6 @@ namespace PinVol
             
             btnShowSettings.Visible = false;
             settingsPanel.Visible = true;
-            //btnHideSettings.Location = new Point(560, 346);
             btnHideSettings.Visible = true;
 
             // update the config to show the settings
@@ -1917,46 +1919,6 @@ namespace PinVol
             }
         }
 
-        private void label22_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void checkBox1_CheckedChanged(object sender, EventArgs e)
-        {
-
-        }
-
-        private void button1_Click(object sender, EventArgs e)
-        {
- 
-         }
-
-        private void txtGlobalUp_TextChanged(object sender, EventArgs e)
-        {
-
-        }
-
-        private void tabPage1_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void label21_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void label19_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void label31_Click(object sender, EventArgs e)
-        {
-
-        }
-
         private void numSSFdBLimit_ValueChanged(object sender, EventArgs e)
         {
 
@@ -1984,10 +1946,6 @@ namespace PinVol
 
             // Update APO with the SSF volume
             UpdateSSFVolume();
-
-            // show and/or refresh the OSD window
-            //ShowOSD(OSDWin.OSDType.SSFBG, osdHotkeyTime);
-
         }
 
         private void trkSSFRSVol_Scroll(object sender, EventArgs e)
@@ -2001,9 +1959,6 @@ namespace PinVol
 
             // Update APO with the SSF volume
             UpdateSSFVolume();
-
-            // show and/or refresh the OSD window
-            //ShowOSD(OSDWin.OSDType.SSFRS, osdHotkeyTime);
         }
 
         private void trkSSFFSVol_Scroll(object sender, EventArgs e)
@@ -2017,9 +1972,6 @@ namespace PinVol
 
             // Update APO with the SSF volume
             UpdateSSFVolume();
-
-            // show and/or refresh the OSD window
-            //ShowOSD(OSDWin.OSDType.SSFFS, osdHotkeyTime);
         }
 
         private void btnViewErrors_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)

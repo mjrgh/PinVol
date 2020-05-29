@@ -125,6 +125,7 @@
             this.picNightMode = new System.Windows.Forms.PictureBox();
             this.notifyIcon1 = new System.Windows.Forms.NotifyIcon(this.components);
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
+            this.label33 = new System.Windows.Forms.Label();
             this.KeyMenu.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trkGlobalVol)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.trkLocalVol)).BeginInit();
@@ -395,6 +396,7 @@
             // 
             // settingsPanel
             // 
+            this.settingsPanel.Controls.Add(this.label33);
             this.settingsPanel.Controls.Add(this.label32);
             this.settingsPanel.Controls.Add(this.label31);
             this.settingsPanel.Controls.Add(this.tabControl1);
@@ -590,7 +592,6 @@
             this.tabPage1.Size = new System.Drawing.Size(613, 140);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "Table Keys";
-            this.tabPage1.Click += new System.EventHandler(this.tabPage1_Click);
             // 
             // label3
             // 
@@ -805,7 +806,6 @@
             this.label21.Size = new System.Drawing.Size(603, 37);
             this.label21.TabIndex = 22;
             this.label21.Text = resources.GetString("label21.Text");
-            this.label21.Click += new System.EventHandler(this.label21_Click);
             // 
             // txtSSFBGDown
             // 
@@ -846,7 +846,6 @@
             this.label19.Size = new System.Drawing.Size(585, 39);
             this.label19.TabIndex = 23;
             this.label19.Text = resources.GetString("label19.Text");
-            this.label19.Click += new System.EventHandler(this.label19_Click);
             // 
             // ckEnableLocal2
             // 
@@ -978,6 +977,7 @@
             this.pictureBox1.Location = new System.Drawing.Point(533, 24);
             this.pictureBox1.Name = "pictureBox1";
             this.pictureBox1.Size = new System.Drawing.Size(78, 119);
+            this.pictureBox1.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
             this.pictureBox1.TabIndex = 78;
             this.pictureBox1.TabStop = false;
             // 
@@ -1056,7 +1056,7 @@
             // 
             // trkSSFRSVol
             // 
-            this.trkSSFRSVol.Location = new System.Drawing.Point(275, 60);
+            this.trkSSFRSVol.Location = new System.Drawing.Point(275, 59);
             this.trkSSFRSVol.Minimum = -10;
             this.trkSSFRSVol.Name = "trkSSFRSVol";
             this.trkSSFRSVol.Size = new System.Drawing.Size(219, 45);
@@ -1069,7 +1069,7 @@
             // 
             this.lblSSFRSVol.AutoSize = true;
             this.lblSSFRSVol.ImageAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.lblSSFRSVol.Location = new System.Drawing.Point(498, 74);
+            this.lblSSFRSVol.Location = new System.Drawing.Point(498, 73);
             this.lblSSFRSVol.Name = "lblSSFRSVol";
             this.lblSSFRSVol.Size = new System.Drawing.Size(29, 13);
             this.lblSSFRSVol.TabIndex = 71;
@@ -1079,7 +1079,7 @@
             // label22
             // 
             this.label22.AutoSize = true;
-            this.label22.Location = new System.Drawing.Point(181, 74);
+            this.label22.Location = new System.Drawing.Point(181, 73);
             this.label22.Name = "label22";
             this.label22.Size = new System.Drawing.Size(98, 13);
             this.label22.TabIndex = 69;
@@ -1102,6 +1102,15 @@
             this.notifyIcon1.Icon = ((System.Drawing.Icon)(resources.GetObject("notifyIcon1.Icon")));
             this.notifyIcon1.Text = "PinVol";
             this.notifyIcon1.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.notifyIcon1_MouseDoubleClick);
+            // 
+            // label33
+            // 
+            this.label33.AutoSize = true;
+            this.label33.Location = new System.Drawing.Point(285, 487);
+            this.label33.Name = "label33";
+            this.label33.Size = new System.Drawing.Size(222, 13);
+            this.label33.TabIndex = 83;
+            this.label33.Text = "Limits the sliders to prevent over amplification.";
             // 
             // UIWin
             // 
@@ -1264,6 +1273,7 @@
         private System.Windows.Forms.Label label31;
         private System.Windows.Forms.NumericUpDown numSSFdBLimit;
         private System.Windows.Forms.Label label32;
+        private System.Windows.Forms.Label label33;
     }
 }
 
