@@ -1647,7 +1647,15 @@ namespace PinVol
 
                 // If desired, bring up the OSD.  Skip this if the application type
                 // isn't changing - e.g., if we're switching between games in PinballY.
-                if (cfg.OSDOnAppSwitch && appmon.GetAppType() != oldAppType)
+                // 
+                // Also suppress it when switching to generic "GameSys" app types -
+                // those are used for blank VP and FP windows before a game is loaded.
+                // During normal arcade play operation, those windows typically come up
+                // for a few seconds while a game is being loaded, and are quicly
+                // replaced with the loaded game window.  It's a little smoother to
+                // skip the extra OSD activation for the transitional step.
+                String newAppType = appmon.GetAppType();
+                if (cfg.OSDOnAppSwitch && newAppType != oldAppType && newAppType != "GameSys")
                     ShowOSD(osdType, osdAppSwitchTime);
             }
 

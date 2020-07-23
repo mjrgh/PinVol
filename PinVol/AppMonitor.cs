@@ -84,9 +84,20 @@ namespace PinVol
                 if (app == null)
                     return "None";
                 else if (appType == "VP")
-                    return app == "VP" ? "Visual Pinball" : Program.mailslotThread.GetGameTitle(app.Substring(3));
-                else if (appType == "FP")
+                {
+                    // Visual Pinball - show the game title
                     return Program.mailslotThread.GetGameTitle(app.Substring(3));
+                }
+                else if (appType == "FP")
+                {
+                    // Future Pinball - show the game title
+                    return Program.mailslotThread.GetGameTitle(app.Substring(3));
+                }
+                else if (appType == "GameSys")
+                {
+                    // FP/VP with no game loaded - show the app title
+                    return app;
+                }
                 else if (appType == "PinballY")
                 {
                     // If we're distinguishing different game selections in the PinballY
@@ -117,15 +128,9 @@ namespace PinVol
             //
             // A couple of special cases:
             //
-            // - If the app name is "VP", with no game ID suffix, it means that we
-            //   recognized a blank VP window with no game loaded.  When launching a
-            //   game in /play mode, VP opens its designer MDI frame window for a 
-            //   few seconds with nothing loaded.  This window will get updated to
-            //   reflect the loaded filename after the load process is completed.
-            //   So we have to keep checking for a change in this state, since the
-            //   same window will still be in the foreground when the change occurs,
-            //   hence our normal rule (of simply waiting for a new window to come
-            //   to the foreground) won't recognize the change.
+            // - If the app type is "GameSys", meaning a game system window (VP, FP)
+            //   with no game loaded, monitor the window for changes in title to tell
+            //   us if/when a game is loaded.
             //
             // - If the app type is PinballY, AND we're distinguishing volume levels
             //   for individual game selections in the PinballY wheel UI, check the
@@ -135,7 +140,7 @@ namespace PinVol
             int pid, tid = GetWindowThreadProcessId(curwin, out pid);
             if (pid != fgpid 
                 || app == GlobalContextName 
-                || app == "VP"
+                || appType == "GameSys"
                 || (DistinguishPBYGames && appType == "PinballY" && Program.mailslotThread.IsPBYSelectionChanged()))
             {
                 // switch to the global context, on the assumption that we won't find
@@ -192,6 +197,13 @@ namespace PinVol
                             // we've found a suitable window - stop the enumeration
                             return false;
                         }
+                        if (title == "Visual Pinball")
+                        {
+                            // it's a blank Visual Pinball window, with no game loaded
+                            app = "Visual Pinball";
+                            appType = "GameSys";
+                            return false;
+                        }
                         if ((m = Regex.Match(title, @"^Future Pinball - \[[^(]*\(\s*(.*)\)\]$")).Success)
                         {
                             // it's a Future Pinball window
@@ -199,7 +211,13 @@ namespace PinVol
                             appType = "FP";
                             return false;
                         }
-
+                        if (title == "Future Pinball")
+                        {
+                            // it's a blank Future Pinball window, with no game loaded
+                            app = "Future Pinball";
+                            appType = "GameSys";
+                            return false;
+                        }
                         if (title == "PinballX")
                         {
                             // The PinballX front end is running
@@ -333,33 +351,17 @@ namespace PinVol
             // check for a change in the application
             if (app != App)
             {
-                // If we didn't identify the app more specifically than "System", check
-                // a special case.  When Visual Pinball first starts in /play mode, it
-                // opens a window titled just "Visual Pinball", with no document loaded.
-                if (appType == "System" && curwin != IntPtr.Zero)
-                {
-                    // get the window title
-                    int n = 256;
-                    StringBuilder buf = new StringBuilder(n);
-                    if (GetWindowText(curwin, buf, n) > 0 && buf.ToString() == "Visual Pinball")
-                    {
-                        // It's a blank VP window.  Record this as just "VP" with no game ID.
-                        appType = "VP";
-                        app = "VP";
-
-                        // Don't signal a change to the caller, so that we don't trigger an
-                        // OSD popup.  It's nicer to defer the OSD popup until the game is
-                        // actually loaded and we know its name.
-                        return false;
-                    }
-                }
+                // presume this will be an OSD-triggering change
+                bool changed = true;
 
                 // remember the new foreground application
                 App = app;
                 this.appType = appType;
                 fgwin = curwin;
                 fgpid = pid;
-                return true;
+
+                // return the change indication, to trigger the OSD if needed
+                return changed;
             }
 
             // no change
