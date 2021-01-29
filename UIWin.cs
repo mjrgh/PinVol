@@ -1421,7 +1421,7 @@ namespace PinVol
         // Update the APO configuration with the SSF volume
         private void UpdateSSFVolume()
         {
-            string[] lines = { "# Updated by PinVol Automatically -- do not edit", "Stage: post-mix", "Channel: L R", "Preamp: " + SSFBGVolume + " DB", "Channel: RL RR", "Preamp: " + SSFRSVolume + " DB", "Channel: SL SR", "Preamp: " + SSFFSVolume + " DB" };
+            string[] lines = { "# Updated by PinVol Automatically -- do not edit", "Stage: post-mix", "Channel: L R", "Preamp: " + SSFBGVolume + " DB", "Channel: RL RR", "Preamp: " + SSFFSVolume + " DB", "Channel: SL SR", "Preamp: " + SSFRSVolume + " DB" };
             System.IO.File.WriteAllLines(@eqAPOPAth + "\\PinVolSSF.txt", lines);
         }
         
@@ -1907,15 +1907,7 @@ namespace PinVol
 
                 // If desired, bring up the OSD.  Skip this if the application type
                 // isn't changing - e.g., if we're switching between games in PinballY.
-                // 
-                // Also suppress it when switching to generic "GameSys" app types -
-                // those are used for blank VP and FP windows before a game is loaded.
-                // During normal arcade play operation, those windows typically come up
-                // for a few seconds while a game is being loaded, and are quicly
-                // replaced with the loaded game window.  It's a little smoother to
-                // skip the extra OSD activation for the transitional step.
-                String newAppType = appmon.GetAppType();
-                if (cfg.OSDOnAppSwitch && newAppType != oldAppType && newAppType != "GameSys")
+                if (cfg.OSDOnAppSwitch && appmon.GetAppType() != oldAppType)
                     ShowOSD(osdType, osdAppSwitchTime);
             }
 

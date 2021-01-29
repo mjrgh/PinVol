@@ -166,14 +166,14 @@ namespace PinVol
 
                 case OSDType.SSFRS:
                     DrawVolumeBar(gr,
-                        "<< " + mainwin.appmon.FriendlyName + " >>\nSSF Front Exciters Gain   "
+                        "<< " + mainwin.appmon.FriendlyName + " >>\nSSF Rear Exciters Gain   "
                         + Math.Round(mainwin.SSFRSVolume) + "db" + muted,
                         mainwin.SSFRSVolume, r);
                     break;
 
                 case OSDType.SSFFS:
                     DrawVolumeBar(gr,
-                        "<< " + mainwin.appmon.FriendlyName + " >>\nSSF Rear Exciters Gain   "
+                        "<< " + mainwin.appmon.FriendlyName + " >>\nSSF Front Exciters Gain   "
                         + Math.Round(mainwin.SSFFSVolume) + "db" + muted,
                         mainwin.SSFFSVolume, r);
                     break;
