@@ -38,6 +38,16 @@ that are useful in a pin cab environment:
   adjusting the global level.  The per-table memory is still there
   to equalize the level across tables.
 
+- Surround Sound Feedback (SSF) support: if you have a 7.1 surround
+  sound system, PinVol lets you adjust the volume levels for each
+  of the surround channels independently, to optimize the volume
+  balance for table sound effects.  As with the other volume level
+  settings, this is stored on a per-table basis, so that you can
+  adjust each table for the best sound.  To use this feature, you
+  must first install EqualizerAPO, a separate program (also free
+  and open-source) that you can get from SourceForge.net.  This
+  feature was added in January 2021 courtesy of mrloofer.
+
 - Night mode support: PinVol keeps a separate Global volume level
   for night mode, so that you can switch to quieter play with a
   single button press.  When you want to go back to normal play,
