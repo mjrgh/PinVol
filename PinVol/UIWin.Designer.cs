@@ -57,6 +57,7 @@
             this.btnViewErrors = new System.Windows.Forms.LinkLabel();
             this.lnkSelectDevices = new System.Windows.Forms.LinkLabel();
             this.settingsPanel = new System.Windows.Forms.Panel();
+            this.label33 = new System.Windows.Forms.Label();
             this.label32 = new System.Windows.Forms.Label();
             this.label31 = new System.Windows.Forms.Label();
             this.tabControl1 = new System.Windows.Forms.TabControl();
@@ -125,7 +126,7 @@
             this.picNightMode = new System.Windows.Forms.PictureBox();
             this.notifyIcon1 = new System.Windows.Forms.NotifyIcon(this.components);
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
-            this.label33 = new System.Windows.Forms.Label();
+            this.lnkAboutSSF = new System.Windows.Forms.LinkLabel();
             this.KeyMenu.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trkGlobalVol)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.trkLocalVol)).BeginInit();
@@ -396,6 +397,7 @@
             // 
             // settingsPanel
             // 
+            this.settingsPanel.Controls.Add(this.lnkAboutSSF);
             this.settingsPanel.Controls.Add(this.label33);
             this.settingsPanel.Controls.Add(this.label32);
             this.settingsPanel.Controls.Add(this.label31);
@@ -420,6 +422,15 @@
             this.settingsPanel.Name = "settingsPanel";
             this.settingsPanel.Size = new System.Drawing.Size(634, 566);
             this.settingsPanel.TabIndex = 0;
+            // 
+            // label33
+            // 
+            this.label33.AutoSize = true;
+            this.label33.Location = new System.Drawing.Point(285, 487);
+            this.label33.Name = "label33";
+            this.label33.Size = new System.Drawing.Size(222, 13);
+            this.label33.TabIndex = 83;
+            this.label33.Text = "Limits the sliders to prevent over amplification.";
             // 
             // label32
             // 
@@ -1103,14 +1114,16 @@
             this.notifyIcon1.Text = "PinVol";
             this.notifyIcon1.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.notifyIcon1_MouseDoubleClick);
             // 
-            // label33
+            // lnkAboutSSF
             // 
-            this.label33.AutoSize = true;
-            this.label33.Location = new System.Drawing.Point(285, 487);
-            this.label33.Name = "label33";
-            this.label33.Size = new System.Drawing.Size(222, 13);
-            this.label33.TabIndex = 83;
-            this.label33.Text = "Limits the sliders to prevent over amplification.";
+            this.lnkAboutSSF.AutoSize = true;
+            this.lnkAboutSSF.Location = new System.Drawing.Point(135, 99);
+            this.lnkAboutSSF.Name = "lnkAboutSSF";
+            this.lnkAboutSSF.Size = new System.Drawing.Size(164, 13);
+            this.lnkAboutSSF.TabIndex = 84;
+            this.lnkAboutSSF.TabStop = true;
+            this.lnkAboutSSF.Text = "Surround Sound Feedback (SSF)";
+            this.lnkAboutSSF.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.lnkAboutSSF_LinkClicked);
             // 
             // UIWin
             // 
@@ -1274,6 +1287,7 @@
         private System.Windows.Forms.NumericUpDown numSSFdBLimit;
         private System.Windows.Forms.Label label32;
         private System.Windows.Forms.Label label33;
+        private System.Windows.Forms.LinkLabel lnkAboutSSF;
     }
 }
 

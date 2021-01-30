@@ -821,21 +821,49 @@ namespace PinVol
             }
 
             // SSF area
-            // Check for APO config path and enable SSF area if path exists
+            // Check for APO config path, and enable SSF area if path exists
             {
                 using (var hklm = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64))
                 using (var key = hklm.OpenSubKey(@"SOFTWARE\EqualizerAPO"))
                 {
+                    bool apoInstalled = false;
                     if (key != null)
                     {
-                        eqAPOPAth = key.GetValue("ConfigPath").ToString();
-                        SSFGroupBox.Text = "SSF (EQ APO Installed)";
-                        SSFGroupBox.Enabled = true;
-                        tabPage2.Enabled = true;
+                        var val = key.GetValue("ConfigPath");
+                        if (val != null)
+                        {
+                            // APO is installed
+                            apoInstalled = true;
+
+                            // get its path, for writing APO config updates
+                            eqAPOPAth = val.ToString();
+
+                            // show it as enabled in the UI
+                            SSFGroupBox.Text = "SSF (EQ APO Installed)";
+                            SSFGroupBox.Enabled = true;
+                            tabPage2.Enabled = true;
+
+                            // hide the "About SSF" button, since SSF is enabled
+                            lnkAboutSSF.Visible = false;
+                        }
                     }
-                    else
+
+                    // if API isn't installed, hide the SSF UI
+                    if (!apoInstalled)
                     {
-                        tabPage2.Enabled = false;
+                        Log.Info("EqualizerAPO doesn't appear to be installed on this system, so PinVol's Surround Sound Feedback (SSF) controls will not be displayed. "
+                            + " If you wish to control SSF levels through PinVol, install EqualizerAPO on your system, then restart PinVol.");
+
+                        // disable the SSF tab
+                        tabControl1.TabPages.Remove(tabPage2);
+
+                        // hide the SSF panel, move the settings panel up to fill the gap, and resize the window
+                        var gutter = settingsPanel.Top - btnShowSettings.Bottom;
+                        btnShowSettings.Top = btnHideSettings.Top = SSFGroupBox.Top;
+                        settingsPanel.Top = btnShowSettings.Bottom + gutter;
+                        origWinSize = this.ClientSize;
+                        this.ClientSize = new Size(origWinSize.Width, origWinSize.Height - SSFGroupBox.Height);
+                        SSFGroupBox.Hide();
                     }
                 }
             }
@@ -1421,8 +1449,11 @@ namespace PinVol
         // Update the APO configuration with the SSF volume
         private void UpdateSSFVolume()
         {
-            string[] lines = { "# Updated by PinVol Automatically -- do not edit", "Stage: post-mix", "Channel: L R", "Preamp: " + SSFBGVolume + " DB", "Channel: RL RR", "Preamp: " + SSFRSVolume + " DB", "Channel: SL SR", "Preamp: " + SSFFSVolume + " DB" };
-            System.IO.File.WriteAllLines(@eqAPOPAth + "\\PinVolSSF.txt", lines);
+            if (eqAPOPAth != null)
+            {
+                string[] lines = { "# Updated by PinVol Automatically -- do not edit", "Stage: post-mix", "Channel: L R", "Preamp: " + SSFBGVolume + " DB", "Channel: RL RR", "Preamp: " + SSFFSVolume + " DB", "Channel: SL SR", "Preamp: " + SSFRSVolume + " DB" };
+                System.IO.File.WriteAllLines(@eqAPOPAth + "\\PinVolSSF.txt", lines);
+            }
         }
         
         [DllImport("User32.dll", CharSet = CharSet.Auto, SetLastError = true)]
@@ -1761,20 +1792,29 @@ namespace PinVol
             // remember the original window size
             origWinSize = this.ClientSize;
 
-            // resize the window to hide everything below the top of the settings panel
-            this.ClientSize = new Size(origWinSize.Width, settingsPanel.Top - 1);
-            btnShowSettings.Visible = true;
+            // hide everything below the top of the settings panel
+            var winHt = settingsPanel.Top + 3;
             settingsPanel.Visible = false;
-            btnHideSettings.Visible = false;         
+
+            // adjust the Show/Hide button visibility
+            btnShowSettings.Visible = true;
+            btnHideSettings.Visible = false;
+
+            // Resize the window.  Do this after hiding controls, since doing it before hiding
+            // them creates a scrollbar, which Windows Forms wants to add to the width we set.
+            this.ClientSize = new Size(origWinSize.Width, winHt);
         }
 
         private void btnShowSettings_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
             // restore the original window size
             this.ClientSize = origWinSize;
-            
-            btnShowSettings.Visible = false;
+
+            // re - show the settings panel
             settingsPanel.Visible = true;
+
+            // adjust the Show/Hide button visibility
+            btnShowSettings.Visible = false;
             btnHideSettings.Visible = true;
 
             // update the config to show the settings
@@ -2017,6 +2057,17 @@ namespace PinVol
             Program.configToolTimeout();
         }
 
-        
+        private void lnkAboutSSF_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            MessageBox.Show("If you've set up Surround Sound Feedback (SSF) on your system, PinVol can control the "
+                + "volume levels of the surround channels individually on a table-by-table basis.  To enable this "
+                + "ability, you must install EqualizerAPO on your system first.  EqualizerAPO is a free, open-source "
+                + "program that you can download from SourceForge.net.  It doesn't appear to be installed on your "
+                + "system currently, so PinVol's surround sound controls are hidden, to avoid clutter.  If you wish "
+                + "to use the surround controls, install EqualizerAPO, then exit and restart PinVol.  PinVol "
+                + "should display the additional controls for setting the surround sound channel volume levels.");
+        }
+
+
     }
 }
