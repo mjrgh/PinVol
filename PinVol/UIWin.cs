@@ -795,11 +795,27 @@ namespace PinVol
                 notifyIcon1.Visible = true;
             }
         }
-        private void notifyIcon1_MouseDoubleClick(object sender, MouseEventArgs e)
+        private void ShowFromNotifyIcon()
         {
             Show();
             this.WindowState = FormWindowState.Normal;
             notifyIcon1.Visible = false;
+        }
+        private void notifyIcon1_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            ShowFromNotifyIcon();
+        }
+
+        private void notifyIcon1_Click(object sender, EventArgs e)
+        {
+            notifyIconMenu.Show(Cursor.Position);
+        }
+        private void notifyIconMenu_ItemClicked(object sender, ToolStripItemClickedEventArgs e)
+        {
+            if (e.ClickedItem == notifyIconMenuItem_Show)
+                ShowFromNotifyIcon();
+            else if (e.ClickedItem == notifyIconMenuItem_Quit)
+                Close();
         }
 
         // Start the UI

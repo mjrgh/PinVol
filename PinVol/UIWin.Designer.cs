@@ -57,6 +57,7 @@
             this.btnViewErrors = new System.Windows.Forms.LinkLabel();
             this.lnkSelectDevices = new System.Windows.Forms.LinkLabel();
             this.settingsPanel = new System.Windows.Forms.Panel();
+            this.lnkAboutSSF = new System.Windows.Forms.LinkLabel();
             this.label33 = new System.Windows.Forms.Label();
             this.label32 = new System.Windows.Forms.Label();
             this.label31 = new System.Windows.Forms.Label();
@@ -126,7 +127,10 @@
             this.picNightMode = new System.Windows.Forms.PictureBox();
             this.notifyIcon1 = new System.Windows.Forms.NotifyIcon(this.components);
             this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
-            this.lnkAboutSSF = new System.Windows.Forms.LinkLabel();
+            this.notifyIconMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.notifyIconMenuItem_Show = new System.Windows.Forms.ToolStripMenuItem();
+            this.notifyIconMenuItem_Quit = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.KeyMenu.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trkGlobalVol)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.trkLocalVol)).BeginInit();
@@ -147,6 +151,7 @@
             ((System.ComponentModel.ISupportInitialize)(this.trkSSFFSVol)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.trkSSFRSVol)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.picNightMode)).BeginInit();
+            this.notifyIconMenu.SuspendLayout();
             this.SuspendLayout();
             // 
             // label1
@@ -422,6 +427,17 @@
             this.settingsPanel.Name = "settingsPanel";
             this.settingsPanel.Size = new System.Drawing.Size(634, 566);
             this.settingsPanel.TabIndex = 0;
+            // 
+            // lnkAboutSSF
+            // 
+            this.lnkAboutSSF.AutoSize = true;
+            this.lnkAboutSSF.Location = new System.Drawing.Point(135, 99);
+            this.lnkAboutSSF.Name = "lnkAboutSSF";
+            this.lnkAboutSSF.Size = new System.Drawing.Size(164, 13);
+            this.lnkAboutSSF.TabIndex = 84;
+            this.lnkAboutSSF.TabStop = true;
+            this.lnkAboutSSF.Text = "Surround Sound Feedback (SSF)";
+            this.lnkAboutSSF.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.lnkAboutSSF_LinkClicked);
             // 
             // label33
             // 
@@ -1110,20 +1126,39 @@
             // notifyIcon1
             // 
             this.notifyIcon1.BalloonTipText = "PinVol";
+            this.notifyIcon1.ContextMenuStrip = this.notifyIconMenu;
             this.notifyIcon1.Icon = ((System.Drawing.Icon)(resources.GetObject("notifyIcon1.Icon")));
             this.notifyIcon1.Text = "PinVol";
+            this.notifyIcon1.Click += new System.EventHandler(this.notifyIcon1_Click);
             this.notifyIcon1.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.notifyIcon1_MouseDoubleClick);
             // 
-            // lnkAboutSSF
+            // notifyIconMenu
             // 
-            this.lnkAboutSSF.AutoSize = true;
-            this.lnkAboutSSF.Location = new System.Drawing.Point(135, 99);
-            this.lnkAboutSSF.Name = "lnkAboutSSF";
-            this.lnkAboutSSF.Size = new System.Drawing.Size(164, 13);
-            this.lnkAboutSSF.TabIndex = 84;
-            this.lnkAboutSSF.TabStop = true;
-            this.lnkAboutSSF.Text = "Surround Sound Feedback (SSF)";
-            this.lnkAboutSSF.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.lnkAboutSSF_LinkClicked);
+            this.notifyIconMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.notifyIconMenuItem_Show,
+            this.toolStripSeparator1,
+            this.notifyIconMenuItem_Quit});
+            this.notifyIconMenu.Name = "notifyIconMenu";
+            this.notifyIconMenu.ShowImageMargin = false;
+            this.notifyIconMenu.Size = new System.Drawing.Size(163, 76);
+            this.notifyIconMenu.ItemClicked += new System.Windows.Forms.ToolStripItemClickedEventHandler(this.notifyIconMenu_ItemClicked);
+            // 
+            // notifyIconMenuItem_Show
+            // 
+            this.notifyIconMenuItem_Show.Name = "notifyIconMenuItem_Show";
+            this.notifyIconMenuItem_Show.Size = new System.Drawing.Size(162, 22);
+            this.notifyIconMenuItem_Show.Text = "Show PinVol Window";
+            // 
+            // notifyIconMenuItem_Quit
+            // 
+            this.notifyIconMenuItem_Quit.Name = "notifyIconMenuItem_Quit";
+            this.notifyIconMenuItem_Quit.Size = new System.Drawing.Size(162, 22);
+            this.notifyIconMenuItem_Quit.Text = "Close PinVol";
+            // 
+            // toolStripSeparator1
+            // 
+            this.toolStripSeparator1.Name = "toolStripSeparator1";
+            this.toolStripSeparator1.Size = new System.Drawing.Size(159, 6);
             // 
             // UIWin
             // 
@@ -1184,6 +1219,7 @@
             ((System.ComponentModel.ISupportInitialize)(this.trkSSFFSVol)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.trkSSFRSVol)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.picNightMode)).EndInit();
+            this.notifyIconMenu.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -1288,6 +1324,10 @@
         private System.Windows.Forms.Label label32;
         private System.Windows.Forms.Label label33;
         private System.Windows.Forms.LinkLabel lnkAboutSSF;
+        private System.Windows.Forms.ContextMenuStrip notifyIconMenu;
+        private System.Windows.Forms.ToolStripMenuItem notifyIconMenuItem_Show;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
+        private System.Windows.Forms.ToolStripMenuItem notifyIconMenuItem_Quit;
     }
 }
 
