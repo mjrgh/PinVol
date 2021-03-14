@@ -288,22 +288,40 @@ namespace PinVol
         public class ProgramInfo
         {
             public String displayName = null;
-            public String appType = null;
             public String windowTitle = null;
             public Regex windowPattern = null;
             public String exe = null;
 
+            // The Application Type is option in the configuration.  If omitted, it defaults
+            // to the display name.  To preserve fidelity with the original configuration text
+            // when we re-write the file on changes, keep track of whether appName was
+            // specified explicitly in the file, or defaulted.  If defaulted, it means that
+            // it wasn't specified in the config file, so we'll preserve that by leaving it
+            // out of the config file when we re-write it.  This ensures that any future
+            // changes to the choice of default will be applied when reading back this
+            // configuration in a future version.  (If we rewrote the file by plugging in
+            // our defaulted appName value, and we changed the default in a future version,
+            // this particular configuration would retain the old default instead because
+            // it would now appear literally in the config file, which isn't what the user
+            // intended.)
+            public String appType = null;
+            public bool appTypeDefault = false;
+
             public String ConfigText()
             {
                 List<String> s = new List<String>();
-                if (windowTitle != null)
-                    s.Add("windowTitle:\"" + windowTitle.Replace("\"", "\"\"") + "\"");
-                if (windowPattern != null)
-                    s.Add("windowPattern:\"" + windowPattern.ToString().Replace("\"", "\"\"") + "\"");
-                if (exe != null)
-                    s.Add("exe:\"" + exe.Replace("\"", "\"\"") + "\"");
-
+                AddConfigItem(s, "displayName", displayName);
+                if (!appTypeDefault) AddConfigItem(s, "appType", appType);
+                AddConfigItem(s, "exe", exe);
+                AddConfigItem(s, "windowTitle", windowTitle);
+                AddConfigItem(s, "windowPattern", windowPattern);
                 return String.Join(",", s);
+            }
+
+            protected void AddConfigItem(List<String> list, String name, Object value)
+            {
+                if (value != null)
+                    list.Add(name + ":\"" + value.ToString().Replace("\"", "\"\"") + "\"");
             }
 
             public bool Parse(String s)
@@ -385,7 +403,10 @@ namespace PinVol
 
                 // if there's no app type, use the display name as the type
                 if (appType == null)
+                {
                     appType = displayName;
+                    appTypeDefault = true;
+                }
 
                 // success
                 return true;
