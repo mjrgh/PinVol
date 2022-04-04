@@ -1,5 +1,7 @@
 PinVol - Audio volume manager for virtual pinball cabinets
 
+For setup instructions, please see http://mjrnet.org/pinscape/PinVol.html
+
 PinVol is a little helper program that makes it easier to control the
 audio volume on a virtual pinball cabinet.  It does several things
 that are useful in a pin cab environment:
