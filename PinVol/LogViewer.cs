@@ -37,5 +37,11 @@ namespace PinVol
             if (Log.viewer == this)
                 Log.viewer = null;
         }
-    }
+
+		private void LogViewer_FormClosing(object sender, FormClosingEventArgs e)
+		{
+            if (Log.viewer == this)
+                Log.viewer = null;
+		}
+	}
 }

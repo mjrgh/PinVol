@@ -63,14 +63,14 @@ namespace PinVol
                 {
                     // read the file contents and parse it
                     String[] lines = File.ReadAllLines(volPath);
-                    for (int lineno = 0; lineno < lines.Length; ++lineno)
+                    for (int lineNum = 0; lineNum < lines.Length; ++lineNum)
                     {
                         // skip comments
-                        if (Regex.IsMatch(lines[lineno], @"^\s*(#|$)"))
+                        if (Regex.IsMatch(lines[lineNum], @"^\s*(#|$)"))
                             continue;
 
                         // check for the volume level line
-                        Match m = Regex.Match(lines[lineno], @"(?i)^\s*(global|night|default)\s*=\s*(\d+)\s*#?");
+                        Match m = Regex.Match(lines[lineNum], @"(?i)^\s*(global|night|default)\s*=\s*(\d+)\s*#?");
                         if (m.Success)
                         {
                             // parse out the groups and store the day/night global volume level
@@ -96,7 +96,7 @@ namespace PinVol
                         }
 
                         // unrecognized syntax
-                        Log.Error("Invalid syntax in global volume level file (" + volPath + ") at line " + (lineno + 1));
+                        Log.Error("Invalid syntax in global volume level file (" + volPath + ") at line " + (lineNum + 1));
                     }
                 }
                 catch (Exception exc)
@@ -128,12 +128,12 @@ namespace PinVol
                 }
                 if (lines != null)
                 {
-                    for (int lineno = 0; lineno < lines.Length; ++lineno)
+                    for (int lineNum = 0; lineNum < lines.Length; ++lineNum)
                     {
                         try
                         {
                             // get this line; skip blank lines and comments ("#" lines)
-                            String line = lines[lineno];
+                            String line = lines[lineNum];
                             if (Regex.IsMatch(line, @"^\s*(#|$)"))
                                 continue;
 
@@ -173,11 +173,11 @@ namespace PinVol
                             }
 
                             // unmatched syntax - log an error
-                            Log.Error("Invalid syntax in volume database at line " + (lineno + 1));
+                            Log.Error("Invalid syntax in volume database at line " + (lineNum + 1));
                         }
                         catch (Exception exc)
                         {
-                            Log.Error("Error parsing volume database at line " + (lineno + 1)
+                            Log.Error("Error parsing volume database at line " + (lineNum + 1)
                                 + ": " + exc.Message);
                         }
                     }
@@ -876,7 +876,7 @@ namespace PinVol
             tipVersion.SetToolTip(picLogo, "PinVol version " + version);
             lblVersion.Text = "v." + version;
 
-            // Look for attached Pincsape controllers.  If we find any, start a thread
+            // Look for attached Pinscape controllers.  If we find any, start a thread
             // to monitor it/them for Night Mode status changes.
             pinscapeUnits = PinscapeDev.FindDevices();
             if (pinscapeUnits.Count != 0)
@@ -2016,7 +2016,7 @@ namespace PinVol
                 // Also suppress it when switching to generic "GameSys" app types -
                 // those are used for blank VP and FP windows before a game is loaded.
                 // During normal arcade play operation, those windows typically come up
-                // for a few seconds while a game is being loaded, and are quicly
+                // for a few seconds while a game is being loaded, and are quickly
                 // replaced with the loaded game window.  It's a little smoother to
                 // skip the extra OSD activation for the transitional step.
                 String newAppType = appmon.GetAppType();
@@ -2061,7 +2061,13 @@ namespace PinVol
             UpdateSSFVolume();
         }
 
-        private void trkSSFRSVol_Scroll(object sender, EventArgs e)
+		private void UIWin_FormClosing(object sender, FormClosingEventArgs e)
+		{
+            // make sure the log viewer is closed
+            Log.viewer?.Close();
+		}
+
+		private void trkSSFRSVol_Scroll(object sender, EventArgs e)
         {
             lblSSFRSVol.Text = trkSSFRSVol.Value + " dB";
             int value = trkSSFRSVol.Value;

@@ -24,6 +24,7 @@ namespace PinVol
         public int LedWizUnitNo;
         public bool JoystickEnabled;
         public bool isValid;
+        public ushort inputReportByteLength;
 
         // Get a list of connected Pinscape Controller devices
         public static List<PinscapeDev> FindDevices()
@@ -34,7 +35,7 @@ namespace PinVol
             // get the list of devices matching the HID class GUID
             Guid guid = Guid.Empty;
             HIDImports.HidD_GetHidGuid(out guid);
-            IntPtr hdev = HIDImports.SetupDiGetClassDevs(ref guid, null, IntPtr.Zero, HIDImports.DIGCF_DEVICEINTERFACE);
+            IntPtr hDevice = HIDImports.SetupDiGetClassDevs(ref guid, null, IntPtr.Zero, HIDImports.DIGCF_DEVICEINTERFACE);
 
             // set up the attribute structure buffer
             HIDImports.SP_DEVICE_INTERFACE_DATA diData = new HIDImports.SP_DEVICE_INTERFACE_DATA();
@@ -42,19 +43,19 @@ namespace PinVol
 
             // read the devices in our list
             for (uint i = 0;
-                HIDImports.SetupDiEnumDeviceInterfaces(hdev, IntPtr.Zero, ref guid, i, ref diData);
+                HIDImports.SetupDiEnumDeviceInterfaces(hDevice, IntPtr.Zero, ref guid, i, ref diData);
                 ++i)
             {
                 // get the size of the detail data structure
                 UInt32 size = 0;
-                HIDImports.SetupDiGetDeviceInterfaceDetail(hdev, ref diData, IntPtr.Zero, 0, out size, IntPtr.Zero);
+                HIDImports.SetupDiGetDeviceInterfaceDetail(hDevice, ref diData, IntPtr.Zero, 0, out size, IntPtr.Zero);
 
                 // now actually read the detail data structure
                 HIDImports.SP_DEVICE_INTERFACE_DETAIL_DATA diDetail = new HIDImports.SP_DEVICE_INTERFACE_DETAIL_DATA();
                 diDetail.cbSize = (IntPtr.Size == 8) ? (uint)8 : (uint)5;
                 HIDImports.SP_DEVINFO_DATA devInfoData = new HIDImports.SP_DEVINFO_DATA();
                 devInfoData.cbSize = Marshal.SizeOf(devInfoData);
-                if (HIDImports.SetupDiGetDeviceInterfaceDetail(hdev, ref diData, ref diDetail, size, out size, out devInfoData))
+                if (HIDImports.SetupDiGetDeviceInterfaceDetail(hDevice, ref diData, ref diDetail, size, out size, out devInfoData))
                 {
                     // create a file handle to access the device
                     IntPtr fp = HIDImports.CreateFile(
@@ -92,7 +93,7 @@ namespace PinVol
             }
 
             // done with the device info list
-            HIDImports.SetupDiDestroyDeviceInfoList(hdev);
+            HIDImports.SetupDiDestroyDeviceInfoList(hDevice);
 
             // return the device list
             return devices;
@@ -118,29 +119,21 @@ namespace PinVol
             // presume invalid
             this.isValid = false;
 
-            // read a status report
-            byte[] buf = ReadUSB();
-            if (buf != null)
-            {
-                // successfully read a report - mark it as valid
-                isValid = true;
-            }
-
             // Check the HID interface to see if the HID Usage type is 
             // type 4, for Joystick.  If so, the joystick interface is
             // enabled, which the device uses to send nudge and plunger
             // readings.  If not, the joystick interface is disabled, so
             // the device only sends private status messages and query
             // responses.
-            IntPtr ppdata;
-            if (HIDImports.HidD_GetPreparsedData(this.fp, out ppdata))
+            IntPtr preParsedData;
+            if (HIDImports.HidD_GetPreparsedData(this.fp, out preParsedData))
             {
                 // Check the usage.  If the joystick is enabled, the
                 // usage will be 4 = Joystick (on usage page 1, "generic
                 // desktop").  If not, the usage is 0 = Undefined, indicating 
                 // our private status and query interface.
                 HIDImports.HIDP_CAPS caps;
-                HIDImports.HidP_GetCaps(ppdata, out caps);
+                HIDImports.HidP_GetCaps(preParsedData, out caps);
                 if (caps.UsagePage == 1 && caps.Usage == 4)
                     this.JoystickEnabled = true;
 
@@ -152,13 +145,25 @@ namespace PinVol
                 // that's associated with the joystick or private interface.
                 if (caps.UsagePage == 1 && caps.Usage == 6)
                     isValid = false;
-               
+
+                // save the input report size - we have to ask for the correct
+                // size when reading input reports
+                inputReportByteLength = caps.InputReportByteLength;
+
                 // free the preparsed data
-                HIDImports.HidD_FreePreparsedData(ppdata);
+                HIDImports.HidD_FreePreparsedData(preParsedData);
             }
 
-            // figure the LedWiz unit number
-            LedWizUnitNo = (vendorID == 0xFAFA ? ((productID & 0x0F) + 1) : 0);
+			// read a status report
+			byte[] buf = ReadUSB();
+			if (buf != null)
+			{
+				// successfully read a report - mark it as valid
+				isValid = true;
+			}
+
+			// figure the LedWiz unit number
+			LedWizUnitNo = (vendorID == 0xFAFA ? ((productID & 0x0F) + 1) : 0);
         }
 
         // Check for a USB Product/Vendor ID match to the known values.
@@ -254,25 +259,24 @@ namespace PinVol
 
         public String GetLastWin32ErrMsg()
         {
-            int errno = Marshal.GetLastWin32Error();
+            int errNo = Marshal.GetLastWin32Error();
             return String.Format("{0} (Win32 error {1})",
-                new System.ComponentModel.Win32Exception(errno).Message, errno);
+                new System.ComponentModel.Win32Exception(errNo).Message, errNo);
         }
 
         private NativeOverlapped ov;
         public byte[] ReadUSB()
         {
-            // try reading a few times, in case we lose the connection brieflyl
+            // try reading a few times, in case the connection drops momentarily
             for (int tries = 0; tries < 3; ++tries)
             {
                 // set up a non-blocking ("overlapped") read
-                const int rptLen = 15;
-                byte[] buf = new byte[rptLen];
+                byte[] buf = new byte[inputReportByteLength];
                 buf[0] = 0x00;
                 EventWaitHandle ev = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset);
                 ov.OffsetLow = ov.OffsetHigh = 0;
                 ov.EventHandle = ev.SafeWaitHandle.DangerousGetHandle();
-                HIDImports.ReadFile(fp, buf, rptLen, IntPtr.Zero, ref ov);
+                HIDImports.ReadFile(fp, buf, inputReportByteLength, IntPtr.Zero, ref ov);
 
                 // Wait briefly for the read to complete.  But don't wait forever - we might
                 // be talking to a device interface that doesn't provide the type of status
@@ -291,7 +295,7 @@ namespace PinVol
                         TryReopenHandle();
                         continue;
                     }
-                    else if (readLen != rptLen)
+                    else if (readLen != inputReportByteLength)
                     {
                         // The read length didn't match what we expected.  This might be
                         // a different device (not a Pinscape controller) or a different
