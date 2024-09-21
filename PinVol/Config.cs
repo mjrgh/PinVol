@@ -390,7 +390,7 @@ namespace PinVol
                 // at least one of the match keys is required
                 if (exe == null && windowTitle == null && windowPattern == null)
                 {
-                    Log.Error("Program setting doesn't have any match critera (one of exe, windowTitle, windowPattern is required): " + sFull);
+                    Log.Error("Program setting doesn't have any match criteria (one of exe, windowTitle, windowPattern is required): " + sFull);
                     return false;
                 }
 

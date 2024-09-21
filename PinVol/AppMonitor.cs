@@ -181,7 +181,7 @@ namespace PinVol
                             }
                         }
 
-                        // return the cacched information
+                        // return the cached information
                         return processName;
                     };
 

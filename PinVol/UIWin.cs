@@ -15,7 +15,7 @@ using SharpDX.DirectInput;
 using System.Runtime.InteropServices;
 using System.Reflection;
 using Microsoft.Win32;
-
+using System.Windows.Media;
 
 namespace PinVol
 {
@@ -25,6 +25,9 @@ namespace PinVol
         {
             // initialize the form
             InitializeComponent();
+
+			// remember the original window size in case we launched minimized
+			launchSize = Size;
 
             // set up the foreground application monitor
             appmon = new AppMonitor();
@@ -134,12 +137,13 @@ namespace PinVol
                             if (Regex.IsMatch(line, @"^\s*(#|$)"))
                                 continue;
 
-                            // app lines have the format <application name><tab><level as percentage> NOTE: SSF values are DB not percentage.
+                            // App lines have the format <application name><tab><level as percentage>
+                            // NOTE: SSF values are in dB units rather than percentages.
                             Match m = Regex.Match(line, @"^([^\t]*)\t(\d+)(?:\t(\d+))?");
-
                             if (m.Success)
                             {
-                                // First two values are always primary/secondary. If upgrading from prior non-SSF then set those values to 0 if not present
+                                // First two values are always primary/secondary.
+                                // If upgrading from prior non-SSF then set those values to 0 if not present.
                                 string sep = "\t";
                                 string[] splitContent = line.Split(sep.ToCharArray());
 
@@ -149,9 +153,7 @@ namespace PinVol
                                 float secondary = 0.0f;
 
                                 if (splitContent.Length >= 2)
-                                {
                                     secondary = int.Parse(splitContent[2]) / 100.0f;
-                                }
 
                                 // SSF
                                 float SSFBGVolume = 0;
@@ -322,7 +324,7 @@ namespace PinVol
         DateTime osdOffTime = DateTime.Now;
 
         // Our current volume levels.  The global volume is an absolute level
-        // that applies to all appliations and pinball tables.  The local level
+        // that applies to all applications and pinball tables.  The local level
         // is a percentage of the global level that applies to the currently
         // active application/table.  The system volume setting at any given
         // time is the global level times the local level.
@@ -784,17 +786,61 @@ namespace PinVol
 
         }
 
+        bool launchedMinimized = false;
+        Size launchSize;
         private void Form1_Resize(object sender, EventArgs e)
         {
-            //if the form is minimized  
-            //hide it from the task bar  
-            //and show the system tray icon (represented by the NotifyIcon control)  
-            if (this.WindowState == FormWindowState.Minimized)
+            switch (WindowState)
             {
-                Hide();
-                notifyIcon1.Visible = true;
-            }
-        }
+            case FormWindowState.Minimized:
+                // on minimize, hide the window (to remove it from the taskbar) and
+                // show the system tray icon
+                if (!launchedMinimized)
+                {
+                    notifyIcon1.Visible = true;
+                    Hide();
+                }
+                break;
+
+            case FormWindowState.Normal:
+                // On restore, there's a special case if the application was launched
+                // minimized.  This is just a bug in the C# Windows Forms library, as
+                // far as I can tell - Windows Forms seems to store the RestoreBounds
+                // of the window as the *minimized* window size, which has a negative
+                // height and is thus invisible.  I think it's just a sequencing error
+                // in the Windows Forms startup code; when you launch with the initial
+                // window minimized, it's already invisible by the time Windows Forms
+                // starts up (since it's set that way by the system in CreateWindowEx),
+                // so C# captures the iconic size and hangs onto it for restore time.
+				if (launchedMinimized)
+                {
+                    // only do this the first time - the default Windows Forms
+                    // handling will work correctly for subsequent minimize/restore
+                    // cycles, since it'll have a valid window size to capture when
+                    // we minimize from the actual window
+                    launchedMinimized = false;
+
+                    // Resize the window back to the original size, but do this
+                    // after the current event cycle finishes.  The Resize event
+                    // is generated before the resize to RestoreBounds actually
+                    // happens, so resizing the window right now will just get
+                    // overridden by the system resize to RestoreBounds that
+                    // happens after we return.  Doing the resize via BeginInvoke
+                    // defers it until the next event loop cycle, which is
+                    // sufficient to sequence it after the system resize that
+                    // follows the event.  I'm not entirely thrilled with this
+                    // because it's obviously sensitive to the ad hoc specifics
+                    // of the current Windows Forms library's order of operations,
+                    // but it seems reasonable to hope that the forced resize
+                    // that we want to override will always happen immediately
+                    // after we return, so a simple BeginInvoke() should be
+                    // adequate to defer our override-to-the-override long
+                    // enough to make it stick.
+                    BeginInvoke((MethodInvoker)delegate { Size = launchSize; });
+                }
+                break;
+			}
+		}
         private void ShowFromNotifyIcon()
         {
             Show();
@@ -821,8 +867,12 @@ namespace PinVol
         // Start the UI
         private void Form1_Load(object sender, EventArgs e)
         {
-            // Set the build number tool tip
-            String version = Assembly.GetEntryAssembly().GetName().Version.ToString();
+            // note if we launched minimized
+            if (this.WindowState == FormWindowState.Minimized)
+                launchedMinimized = true;
+
+			// Set the build number tool tip
+			String version = Assembly.GetEntryAssembly().GetName().Version.ToString();
             tipVersion.SetToolTip(picLogo, "PinVol version " + version);
             lblVersion.Text = "v." + version;
 
@@ -997,7 +1047,6 @@ namespace PinVol
             trkSSFRSVol.Value = (int)LimitSSFVolume(SSFRSVolume);
             lblSSFFSVol.Text = (int)LimitSSFVolume(SSFFSVolume) + " dB";
             trkSSFFSVol.Value = (int)LimitSSFVolume(SSFFSVolume);
-
 
             // wire the UI controls for the keys to the config elements and hotkeys
             globalUpKey = new KeyField(this, "Global Volume Up", cfg.keys["globalVolUp"], txtGlobalUp, true,

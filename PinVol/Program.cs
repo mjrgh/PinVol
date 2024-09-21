@@ -262,7 +262,7 @@ namespace PinVol
 
             public bool PreFilterMessage(ref Message m)
             {
-                // check for our broadcast mesasge
+                // check for our broadcast message
                 if (m.Msg == configToolMessage1 || m.Msg == configToolMessage2)
                 {
                     // note the new status - wparam=1 if running, 0 if terminating
