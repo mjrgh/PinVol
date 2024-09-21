@@ -1,0 +1,24 @@
+PinVol Build Checklist
+----------------------
+
+- Open the solution in Visual Studio
+
+- Select configuration Release | Any CPU
+
+- If desired, update the version numbers in PinVol/Properties/AssemblyInfo.cs
+
+- Build > Clean Solution
+
+- Build > Build Solution
+
+- Exit Visual Studio
+
+- Create a ZIP file with name template PinVol-YYYYMMDD.zip
+  - add ./PinVol/bin/Release/PinVol.exe
+  - add License.txt
+
+- Update mjrnet.org/pinscape website file PinVol.htm
+  - move the previous "current release" to the release history section
+  - update the current release to the new ZIP name and date
+  - add a section at the top of the history list with a list of changes and new features
+
