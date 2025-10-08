@@ -177,6 +177,7 @@
     <Content Include="FodyWeavers.xml">
       <SubType>Designer</SubType>
     </Content>
+    <Content Include="lockedRedBg.png" />
     <Content Include="SpeakerIcon.ico" />
   </ItemGroup>
   <ItemGroup>

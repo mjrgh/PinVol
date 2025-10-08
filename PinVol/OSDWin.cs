@@ -306,7 +306,24 @@ namespace PinVol
                     new PointF(px + psz, py),
                     new PointF(px, py + psz)
                 });
+
+                // draw the lock icon next to the level if the requested volume control is currently restricted by a lock
+                if (mainwin.cfg.NightVolLock && (mainwin.osdType == OSDType.Global))
+                {
+                    float drawWidth = psz;  // Match dimensions of nightMode icon
+                    float drawHeight = psz; // Match dimensions of nightMode icon
+                    float titleMarginH = 8f;
+                    PointF lockedBmpOrigin = new PointF(tx + titlesz.Width/2 + titleMarginH, py);
+                    gr.DrawImage(lockedVol, new PointF[]
+                    {
+                        lockedBmpOrigin,
+                        new PointF(lockedBmpOrigin.X + drawWidth, lockedBmpOrigin.Y),
+                        new PointF(lockedBmpOrigin.X, lockedBmpOrigin.Y + drawHeight)
+                    });
+                }
             }
+
+
         }
 
         // overlay font
@@ -315,6 +332,8 @@ namespace PinVol
 
         // night mode image
         Bitmap nightMode = PinVol.Properties.Resources.nightModeLarge;
+        Bitmap lockedVol = PinVol.Properties.Resources.lockedVolIcon;
+
 
         private void OSDWin_Resize(object sender, EventArgs e)
         {

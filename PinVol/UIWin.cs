@@ -265,6 +265,22 @@ namespace PinVol
         // Save the current global volume levels
         void SetGlobalVol(float vol)
         {
+            // Apply Night Lock mode, if the Night Lock is enabled and Night Mode is active
+            if (cfg.NightVolLock && volumeMode == VolumeMode.Night)
+            {
+                if (cfg.NightLockBehavior == Config.NightLockBehaviors.Release)
+                {
+                    // Night Lock "Release" mode: exit Night Mode on a global volume change
+                    SetNightMode(VolumeModeSource.None, false, OSDWin.OSDType.Global);
+                }
+                else
+                {
+                    // "Hold" mode: prevent global volume changes while in Night Mode
+                    SetGlobalVolDirty();
+                    return;
+                }
+            }
+
             vol = LimitVolume(vol);
             if (vol != globalVolume[(int)volumeMode])
             {
@@ -346,7 +362,7 @@ namespace PinVol
         public float localVolume = 0.0f;
         public float local2Volume = 0.0f;
         public VolumeMode volumeMode = VolumeMode.Day;
-        public VolumeModeSource volumeModeSource = VolumeModeSource.None;
+        public VolumeModeSource volumeModeSource = VolumeModeSource.None;      
 
         // SSF stuff
         public float SSFBGVolume = 0.0f;
@@ -975,6 +991,10 @@ namespace PinVol
             // set the initial unmute-on-volume-change setting
             ckUnmuteOnVolChange.Checked = cfg.UnMuteOnVolChange;
 
+            // set the initial Night Lock settings
+            chkLockNightVol.Checked = cfg.NightVolLock;
+            cboNightLockBehavior.SelectedIndex = (int)cfg.NightLockBehavior;
+
             // set the initial OSD checkboxes
             ckOSDOnHotkeys.Checked = cfg.OSDOnHotkeys;
             ckOSDOnAppSwitch.Checked = cfg.OSDOnAppSwitch;
@@ -1316,6 +1336,29 @@ namespace PinVol
 
         private void GlobalVolumeAdjust(float delta, OSDWin.OSDType osdType)
         {
+            // figure the new volume from the existing volume and the delta
+            float newVol = globalVolume[(int)volumeMode] + delta;
+
+            // Apply Night Lock mode, if enabled and Night Mode is active
+            if (cfg.NightVolLock && volumeMode == VolumeMode.Night)
+            {
+                // apply the Night Lock behavior
+                switch (cfg.NightLockBehavior)
+                {
+                    case Config.NightLockBehaviors.Release:
+						// Release mode: exit Night Mode on a global volume change
+						SetNightMode(VolumeModeSource.None, false, OSDWin.OSDType.Global);
+                        break;
+
+                    case Config.NightLockBehaviors.Hold:
+                    default:
+                        // Hold mode: prevent volume changes while in Night Mode
+                        newVol = globalVolume[(int)volumeMode];
+						break;
+				}
+			}
+
+            // apply the volume change
             SetGlobalVol(globalVolume[(int)volumeMode] + delta);
             CheckMute();
             UpdateVolume(osdType);
@@ -1497,6 +1540,10 @@ namespace PinVol
             int g = (int)Math.Round(globalVolume[(int)volumeMode] * 100.0f);
             trkGlobalVol.Value = g;
             lblGlobalVol.Text = g + "%";
+
+            // update the night volume indicator with the current night value
+            int ng = (int)Math.Round(globalVolume[(int)VolumeMode.Night] * 100.0f);
+            lblNightVol.Text = ng + "%";
 
             // update the SSF volume trackbar controls
             trkSSFBGVol.Value = (int)LimitSSFVolume(SSFBGVolume);
@@ -2067,7 +2114,28 @@ namespace PinVol
             Log.viewer?.Close();
 		}
 
-		private void trkSSFRSVol_Scroll(object sender, EventArgs e)
+        private void chkLockNightVol_CheckedChanged(object sender, EventArgs e)
+        {
+            bool f = chkLockNightVol.Checked;
+            if (cfg.NightVolLock != f)
+            {
+                cfg.NightVolLock = f;
+                SetCfgDirty();
+            }
+        }
+
+        private void cboNightLockBehavior_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            Config.NightLockBehaviors f = (Config.NightLockBehaviors)cboNightLockBehavior.SelectedIndex;
+                
+            if (cfg.NightLockBehavior != f)
+            {
+                cfg.NightLockBehavior = f;
+                SetCfgDirty();
+            }
+        }
+
+        private void trkSSFRSVol_Scroll(object sender, EventArgs e)
         {
             lblSSFRSVol.Text = trkSSFRSVol.Value + " dB";
             int value = trkSSFRSVol.Value;

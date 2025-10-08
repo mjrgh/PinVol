@@ -1,14 +1,15 @@
 ﻿using System;
-using System.Windows.Forms;
 using System.Collections.Generic;
+using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using System.IO;
-using System.Windows;
-using System.Windows.Input;
 using System.Text.RegularExpressions;
-using System.Drawing;
+using System.Threading.Tasks;
+using System.Windows;
+using System.Windows.Forms;
+using System.Windows.Input;
+using static PinVol.UIWin;
 
 namespace PinVol
 {
@@ -56,6 +57,42 @@ namespace PinVol
         public bool EnableJoystick = false;             // enable joystick input
         public bool EnableLocal2 = false;               // enable independent control over secondary device volume per table
         public int SSFdBLimit = 10;                     // value for the SSF slider.
+
+        public bool NightVolLock = false;               // enable night-mode volume lock; disable by default, so that
+                                                        // installations from before this feature aren't affected by it
+                                                        // until they opt in by enabling it
+        public NightLockBehaviors NightLockBehavior = NightLockBehaviors.Hold;    // only applies when NightLock is active
+
+        // Night-mode volume locking options
+        public enum NightLockBehaviors
+        {
+            Hold = 0,       // when lock is engaged and Night Mode is active, ignore changes to the global volume level
+            Release = 1     // when lock is engaged and Night Mode is active, exit night mode when the global volume is changed
+        };
+
+        // Convert enum value to string for file storage
+        string ToString(NightLockBehaviors val)
+        {
+            switch (val)
+            {
+                case NightLockBehaviors.Release:
+                    return "Release";
+
+                case NightLockBehaviors.Hold:
+                default:
+                    return "Hold";
+            }
+        }
+
+        // Convert a string value to a NightLockBehavior, defaulting to HOLD if unknown
+        NightLockBehaviors ToNightLockBehavior(string val)
+        {
+            string lcVal = val.ToLower().Trim();
+            if (lcVal == "release")
+                return NightLockBehaviors.Release;
+            else 
+                return NightLockBehaviors.Hold;
+        }
 
         // Audio device record.  This represents the saved config data
         // corresponding to a UIWin.AudioDevice object.  
@@ -253,6 +290,10 @@ namespace PinVol
                                 ParseProgram(value);
                             else if (varname == "ssfdblimit")
                                 SSFdBLimit = int.Parse(value);
+                            else if (varname == "nightvollock")
+                                NightVolLock = bool.Parse(value);
+                            else if (varname == "nightlockbehavior")
+                                NightLockBehavior = ToNightLockBehavior(value);
                             else
                                 Log.Error("Invalid key name in config file at line " + lineNum + ": " + m.Groups[1].Value);
                         }
@@ -439,7 +480,9 @@ namespace PinVol
                 lines.Add("UnMuteOnVolChange = " + UnMuteOnVolChange);
                 lines.Add("EnableJoystick = " + EnableJoystick);
                 lines.Add("EnableSecondary = " + EnableLocal2);
-                lines.Add("SSFdBLimit = " + SSFdBLimit); 
+                lines.Add("SSFdBLimit = " + SSFdBLimit);
+                lines.Add("NightVolLock = " + NightVolLock);
+                lines.Add("NightLockBehavior = " + ToString(NightLockBehavior));
 
                 // add the active device list
                 foreach (var kvp in devices)
