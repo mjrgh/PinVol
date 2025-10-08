@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("PinVol")]
-[assembly: AssemblyCopyright("Copyright 2016-2020, Michael J Roberts; MIT License")]
+[assembly: AssemblyCopyright("Copyright 2016-2025, Michael J Roberts; MIT License")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
