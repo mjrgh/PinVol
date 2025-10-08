@@ -265,14 +265,17 @@ namespace PinVol
         // Save the current global volume levels
         void SetGlobalVol(float vol)
         {
-            if (cfg.NightVolLock && (volumeMode == VolumeMode.Night))
+            // Apply Night Lock mode, if the Night Lock is enabled and Night Mode is active
+            if (cfg.NightVolLock && volumeMode == VolumeMode.Night)
             {
                 if (cfg.NightLockBehavior == Config.NightLockBehaviors.Release)
                 {
+                    // Night Lock "Release" mode: exit Night Mode on a global volume change
                     SetNightMode(VolumeModeSource.None, false, OSDWin.OSDType.Global);
                 }
-                else //behavior is Hold
+                else
                 {
+                    // "Hold" mode: prevent global volume changes while in Night Mode
                     SetGlobalVolDirty();
                     return;
                 }
@@ -988,7 +991,7 @@ namespace PinVol
             // set the initial unmute-on-volume-change setting
             ckUnmuteOnVolChange.Checked = cfg.UnMuteOnVolChange;
 
-            // set the initial night lock settings
+            // set the initial Night Lock settings
             chkLockNightVol.Checked = cfg.NightVolLock;
             cboNightLockBehavior.SelectedIndex = (int)cfg.NightLockBehavior;
 
@@ -1333,33 +1336,32 @@ namespace PinVol
 
         private void GlobalVolumeAdjust(float delta, OSDWin.OSDType osdType)
         {
-            if (!cfg.NightVolLock || volumeMode == VolumeMode.Day)
+            // figure the new volume from the existing volume and the delta
+            float newVol = globalVolume[(int)volumeMode] + delta;
+
+            // Apply Night Lock mode, if enabled and Night Mode is active
+            if (cfg.NightVolLock && volumeMode == VolumeMode.Night)
             {
-                SetGlobalVol(globalVolume[(int)volumeMode] + delta);
-                CheckMute();
-                UpdateVolume(osdType);
-            }
-            else
-            {
+                // apply the Night Lock behavior
                 switch (cfg.NightLockBehavior)
                 {
                     case Config.NightLockBehaviors.Release:
-                    {
-                        SetNightMode(VolumeModeSource.None, false, OSDWin.OSDType.Global);
-                        SetGlobalVol(globalVolume[(int)VolumeMode.Night] + delta);
-                        CheckMute();
-                        UpdateVolume(osdType);
+						// Release mode: exit Night Mode on a global volume change
+						SetNightMode(VolumeModeSource.None, false, OSDWin.OSDType.Global);
                         break;
-                    }
-                    default:    //i.e. Hold
-                    {
-                        SetGlobalVol(globalVolume[(int)volumeMode]);
-                        CheckMute();
-                        UpdateVolume(osdType);
-                        break;
-                    }
-                }
-            }
+
+                    case Config.NightLockBehaviors.Hold:
+                    default:
+                        // Hold mode: prevent volume changes while in Night Mode
+                        newVol = globalVolume[(int)volumeMode];
+						break;
+				}
+			}
+
+            // apply the volume change
+            SetGlobalVol(globalVolume[(int)volumeMode] + delta);
+            CheckMute();
+            UpdateVolume(osdType);
         }
 
         private void LocalVolumeAdjust(float delta, OSDWin.OSDType osdType)
@@ -1539,10 +1541,9 @@ namespace PinVol
             trkGlobalVol.Value = g;
             lblGlobalVol.Text = g + "%";
 
-            // update the night volume volume indicator with the current night value
+            // update the night volume indicator with the current night value
             int ng = (int)Math.Round(globalVolume[(int)VolumeMode.Night] * 100.0f);
             lblNightVol.Text = ng + "%";
-
 
             // update the SSF volume trackbar controls
             trkSSFBGVol.Value = (int)LimitSSFVolume(SSFBGVolume);
@@ -1643,12 +1644,6 @@ namespace PinVol
             CheckMute();
             UpdateVolume(OSDWin.OSDType.None);
         }
-
-        private void trkNightVol_Scroll(object sender, EventArgs e)
-        {
-
-        }
-
 
         private void trkLocalVol_Scroll(object sender, EventArgs e)
         {
@@ -2118,11 +2113,6 @@ namespace PinVol
             // make sure the log viewer is closed
             Log.viewer?.Close();
 		}
-
-        private void checkBox1_CheckedChanged(object sender, EventArgs e)
-        {
-
-        }
 
         private void chkLockNightVol_CheckedChanged(object sender, EventArgs e)
         {

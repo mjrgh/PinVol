@@ -58,13 +58,16 @@ namespace PinVol
         public bool EnableLocal2 = false;               // enable independent control over secondary device volume per table
         public int SSFdBLimit = 10;                     // value for the SSF slider.
 
-        public bool NightVolLock = false;      //set to false to maintain backward compatability with existing installs
-        public NightLockBehaviors NightLockBehavior = NightLockBehaviors.Hold;    //only applies when nightLock is active
+        public bool NightVolLock = false;               // enable night-mode volume lock; disable by default, so that
+                                                        // installations from before this feature aren't affected by it
+                                                        // until they opt in by enabling it
+        public NightLockBehaviors NightLockBehavior = NightLockBehaviors.Hold;    // only applies when NightLock is active
 
+        // Night-mode volume locking options
         public enum NightLockBehaviors
         {
-            Hold = 0,       //if locked, do not allow the global level to be changed when in night mode
-            Release = 1     //if locked and a volume update is attempted while in night mode, switch out of night mode before applying global change.
+            Hold = 0,       // when lock is engaged and Night Mode is active, ignore changes to the global volume level
+            Release = 1     // when lock is engaged and Night Mode is active, exit night mode when the global volume is changed
         };
 
         // Convert enum value to string for file storage
@@ -72,17 +75,20 @@ namespace PinVol
         {
             switch (val)
             {
-                case NightLockBehaviors.Release:    { return "Release"; }
+                case NightLockBehaviors.Release:
+                    return "Release";
+
                 case NightLockBehaviors.Hold:
-                default:                            { return "Hold"; }
+                default:
+                    return "Hold";
             }
         }
 
         // Convert a string value to a NightLockBehavior, defaulting to HOLD if unknown
         NightLockBehaviors ToNightLockBehavior(string val)
         {
-            string v = val.ToLower().Trim();
-            if (v == "release")
+            string lcVal = val.ToLower().Trim();
+            if (lcVal == "release")
                 return NightLockBehaviors.Release;
             else 
                 return NightLockBehaviors.Hold;
